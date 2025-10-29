@@ -52,7 +52,7 @@ phases_data = {
                 "Nivå 1: Gevinster er vagt definert, uten tydelig kobling til strategi.",
                 "Nivå 2: Gevinster er identifisert, men mangler klare kriterier og prioritering.",
                 "Nivå 3: Gevinster er dokumentert og delvis knyttet til strategiske mål, men grunnlaget har usikkerhet.",
-                "Nivå 4: Gevinster er tydelig koblet til strategiske mål med konkrete måltall.",
+                "Nivå 4: Gevinster er tydelik koblet til strategiske mål med konkrete måltall.",
                 "Nivå 5: Gevinster er fullt integrert i styringssystemet og brukes i beslutninger."
             ]
         },
@@ -278,7 +278,7 @@ phases_data = {
             "title": "Bygge momentum og tidlig gevinstuttak",
             "question": "Hvordan planlegges det for å bygge momentum og realisere tidlige gevinster underveis i programmet?",
             "scale": [
-                "Nivå 1: Ingen plan for tidlig gevinstuttak eller oppbyggning av momentum.",
+                "Nivå 1: Ingen plan for tidlig gevinstuttak eller oppbygging av momentum.",
                 "Nivå 2: Enkelte uformelle vurderinger av tidlige gevinster.",
                 "Nivå 3: Plan for tidlig gevinstuttak er identifisert, men ikke koordinert.",
                 "Nivå 4: Strukturert tilnærming for tidlig gevinstuttak med tildelt ansvar.",
@@ -898,7 +898,7 @@ phases_data = {
             "scale": [
                 "Nivå 1: Ingen varig endring observert.",
                 "Nivå 2: Enkelte endringer, men ikke forankret.",
-                "Nivå 3: Endring skjer, men avhenger av enkeltpersoner.",
+                "Nivå 3: Endring skjer, maar avhenger av enkeltpersoner.",
                 "Nivå 4: Endring tydelig forankret i praksis og ledelse.",
                 "Nivå 5: Varig kulturendring etablert og målbart synlig."
             ]
@@ -1068,8 +1068,8 @@ def generate_radar_chart(stats):
         theta=phases + [phases[0]],
         fill='toself',
         name='Modenhet',
-        line=dict(color='#4CAF50'),
-        fillcolor='rgba(76, 175, 80, 0.3)'
+        line=dict(color='#BA0C2F'),  # Bane NOR rød
+        fillcolor='rgba(186, 12, 47, 0.3)'
     ))
     
     fig.update_layout(
@@ -1110,8 +1110,8 @@ def generate_phase_radar_chart(phase_name, questions, responses):
         theta=categories,
         fill='toself',
         name='Score',
-        line=dict(color='#2196F3'),
-        fillcolor='rgba(33, 150, 243, 0.3)'
+        line=dict(color='#BA0C2F'),  # Bane NOR rød
+        fillcolor='rgba(186, 12, 47, 0.3)'
     ))
     
     fig.update_layout(
@@ -1153,7 +1153,7 @@ def generate_report():
         
         for question in phases_data[phase]:
             response = st.session_state.responses[phase][question['id']]
-            status = "✓" if response['completed'] else "✗"
+            status = "[OK]" if response['completed'] else "[X]"
             score = response['score'] if response['score'] > 0 else "Ikke vurdert"
             
             report.append(f"{status} {question['id']}. {question['title']}")
@@ -1180,6 +1180,24 @@ def generate_report():
     
     return "\n".join(report)
 
+def clean_text(text):
+    """Hjelpefunksjon for å rense tekst for spesialtegn"""
+    if text is None:
+        return ""
+    # Erstatt spesialtegn med vanlig tekst
+    replacements = {
+        '✓': '[OK]',
+        '✗': '[X]',
+        '–': '-',
+        '—': '-',
+        '´': "'",
+        '`': "'"
+    }
+    cleaned = str(text)
+    for old, new in replacements.items():
+        cleaned = cleaned.replace(old, new)
+    return cleaned
+
 def create_pdf_report():
     """Generer PDF rapport"""
     class PDF(FPDF):
@@ -1203,7 +1221,7 @@ def create_pdf_report():
     pdf.ln(5)
     
     pdf.set_font('Arial', '', 10)
-    pdf.cell(0, 10, f'Rapport generert: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 1)
+    pdf.cell(0, 10, clean_text(f'Rapport generert: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'), 0, 1)
     pdf.ln(10)
     
     # Sammendrag
@@ -1214,24 +1232,25 @@ def create_pdf_report():
     
     for phase, stat in stats.items():
         if stat['count'] > 0:
-            pdf.cell(0, 8, f'{phase}: {stat["count"]}/{stat["total"]} fullført - Gjennomsnitt: {stat["average"]:.2f}', 0, 1)
+            pdf.cell(0, 8, clean_text(f'{phase}: {stat["count"]}/{stat["total"]} fullført - Gjennomsnitt: {stat["average"]:.2f}'), 0, 1)
     
     pdf.ln(10)
     
     # Detaljert resultat
     for phase in phases_data:
         pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, f'FASE: {phase.upper()}', 0, 1)
+        pdf.cell(0, 10, clean_text(f'FASE: {phase.upper()}'), 0, 1)
         pdf.set_font('Arial', '', 10)
         
         for question in phases_data[phase]:
             response = st.session_state.responses[phase][question['id']]
             if response['completed'] and response['score'] > 0:
-                status = "✓" if response['completed'] else "✗"
-                pdf.multi_cell(0, 8, f'{status} {question["id"]}. {question["title"]} - Score: {response["score"]}')
+                # Bruk clean_text for alle tekster
+                status = "[OK]" if response['completed'] else "[X]"
+                pdf.multi_cell(0, 8, clean_text(f'{status} {question["id"]}. {question["title"]} - Score: {response["score"]}'))
                 if response['notes']:
                     pdf.set_font('Arial', 'I', 8)
-                    pdf.multi_cell(0, 6, f'Notater: {response["notes"]}')
+                    pdf.multi_cell(0, 6, clean_text(f'Notater: {response["notes"]}'))
                     pdf.set_font('Arial', '', 10)
                 pdf.ln(2)
         
@@ -1248,7 +1267,7 @@ def create_pdf_report():
         for question in phases_data[phase]:
             response = st.session_state.responses[phase][question['id']]
             if response['completed'] and 0 < response['score'] < 3:
-                pdf.multi_cell(0, 8, f'• {phase} - {question["title"]} (Score: {response["score"]})')
+                pdf.multi_cell(0, 8, clean_text(f'• {phase} - {question["title"]} (Score: {response["score"]})'))
                 improvement_found = True
     
     if not improvement_found:
@@ -1258,14 +1277,38 @@ def create_pdf_report():
 
 def get_pdf_download_link(pdf):
     """Generer download link for PDF"""
-    pdf_output = pdf.output(dest='S').encode('latin-1')
+    try:
+        pdf_output = pdf.output(dest='S').encode('latin-1')
+    except:
+        # Fallback til UTF-8 hvis latin-1 feiler
+        pdf_output = pdf.output(dest='S').encode('utf-8')
     b64 = base64.b64encode(pdf_output).decode()
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="modenhetsvurdering_rapport.pdf">Last ned PDF Rapport</a>'
     return href
 
 def main():
-    st.title(" Modenhetsvurdering - Gevinstrealisering")
-    st.markdown("Interaktiv vurdering av modenhet i gevinstrealisering gjennom fire faser")
+    # Bane NOR fargepalett
+    st.markdown("""
+        <style>
+        .main-header {
+            font-size: 2.5rem;
+            color: #BA0C2F;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .phase-header {
+            color: #BA0C2F;
+            border-bottom: 2px solid #BA0C2F;
+            padding-bottom: 0.5rem;
+        }
+        .stProgress > div > div > div > div {
+            background-color: #BA0C2F;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<h1 class="main-header">🚆 Modenhetsvurdering - Gevinstrealisering</h1>', unsafe_allow_html=True)
+    st.markdown("**Interaktiv vurdering av modenhet i gevinstrealisering gjennom fire faser**")
     st.markdown("---")
     
     # Initialiser session state
@@ -1273,7 +1316,7 @@ def main():
     
     # Sidebar for navigasjon og oversikt
     with st.sidebar:
-        st.header(" Oversikt")
+        st.markdown('<h2 style="color: #BA0C2F;">📊 Oversikt</h2>', unsafe_allow_html=True)
         
         selected_phase = st.selectbox(
             "Velg fase:",
@@ -1287,42 +1330,43 @@ def main():
             phase_stats = stats[selected_phase]
             progress = phase_stats['count'] / phase_stats['total'] if phase_stats['total'] > 0 else 0
             
-            st.subheader("Fremdrift")
+            st.subheader("📈 Fremdrift")
             st.progress(progress)
-            st.write(f"{phase_stats['count']}/{phase_stats['total']} spørsmål fullført")
+            st.write(f"**{phase_stats['count']}/{phase_stats['total']}** spørsmål fullført")
             
             if phase_stats['count'] > 0:
                 st.write(f"Gjennomsnittsscore: **{phase_stats['average']:.2f}**")
         
         st.markdown("---")
-        st.subheader("Hurtigstatistikk")
+        st.subheader("⚡ Hurtigstatistikk")
         for phase, stat in stats.items():
             if stat['count'] > 0:
                 st.write(f"**{phase}:** {stat['average']:.2f}")
     
     # Hovedinnhold - spørsmålsvisning
-    st.header(f"📝 {selected_phase}")
+    st.markdown(f'<h2 class="phase-header">📋 {selected_phase}</h2>', unsafe_allow_html=True)
     
     # Alle spørsmål i expandere
     for question in phases_data[selected_phase]:
         response = st.session_state.responses[selected_phase][question['id']]
         
         with st.expander(
-            f"{question['id']}. {question['title']} - "
+            f"🔹 {question['id']}. {question['title']} - "
             f"Score: {response['score'] if response['completed'] else 'Ikke vurdert'}",
             expanded=False
         ):
-            st.write(f"**{question['question']}**")
+            # Bruk "Spørsmål:" i stedet for å gjenta nummeret
+            st.write(f"**Spørsmål:** {question['question']}")
             
             # Modenhetsskala
-            st.subheader("Modenhetsskala:")
+            st.subheader("📊 Modenhetsskala:")
             for i, level in enumerate(question['scale']):
                 st.write(f"**Nivå {i+1}:** {level}")
             
             # Score input
             current_score = response['score']
             new_score = st.radio(
-                "Velg din vurdering:",
+                "🎯 Velg din vurdering:",
                 options=[1, 2, 3, 4, 5],
                 index=current_score-1 if current_score > 0 else 0,
                 key=f"score_{selected_phase}_{question['id']}",
@@ -1332,7 +1376,7 @@ def main():
             # Notater
             current_notes = response['notes']
             new_notes = st.text_area(
-                "Dine notater og kommentarer:",
+                "📝 Dine notater og kommentarer:",
                 value=current_notes,
                 key=f"notes_{selected_phase}_{question['id']}",
                 placeholder="Skriv dine observasjoner her...",
@@ -1340,20 +1384,22 @@ def main():
             )
             
             # Lagre knapp
-            if st.button("Lagre svar", key=f"save_{selected_phase}_{question['id']}"):
-                st.session_state.responses[selected_phase][question['id']] = {
-                    'score': new_score,
-                    'notes': new_notes,
-                    'completed': True
-                }
-                st.success("Svar lagret!")
-                st.rerun()
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("💾 Lagre svar", key=f"save_{selected_phase}_{question['id']}", use_container_width=True):
+                    st.session_state.responses[selected_phase][question['id']] = {
+                        'score': new_score,
+                        'notes': new_notes,
+                        'completed': True
+                    }
+                    st.success("✅ Svar lagret!")
+                    st.rerun()
     
     # Resultatseksjon
     st.markdown("---")
-    st.header("📈 Resultatoversikt")
+    st.markdown('<h2 style="color: #BA0C2F;">📈 Resultatoversikt</h2>', unsafe_allow_html=True)
     
-    if st.button("Generer Full Rapport", type="primary"):
+    if st.button("🚀 Generer Full Rapport", type="primary", use_container_width=True):
         stats = calculate_stats()
         
         # Visuelle visualiseringer
@@ -1368,10 +1414,10 @@ def main():
                 fig_bar = px.bar(
                     x=phases_with_data,
                     y=averages,
-                    title="Gjennomsnittsscore per Fase",
+                    title="📊 Gjennomsnittsscore per Fase",
                     labels={'x': 'Fase', 'y': 'Gjennomsnittsscore'},
                     color=averages,
-                    color_continuous_scale='RdYlGn'
+                    color_continuous_scale=['#FF6B6B', '#FFD166', '#06D6A0', '#118AB2', '#073B4C']
                 )
                 fig_bar.update_layout(yaxis_range=[0, 5.5])
                 st.plotly_chart(fig_bar, use_container_width=True)
@@ -1384,7 +1430,7 @@ def main():
                 st.plotly_chart(radar_fig, use_container_width=True)
         
         # Detaljerte radardiagrammer per fase
-        st.subheader("📊 Detaljert Modenhet per Fase")
+        st.subheader("🎯 Detaljert Modenhet per Fase")
         for phase in phases_data:
             phase_questions = phases_data[phase]
             phase_responses = st.session_state.responses[phase]
@@ -1396,7 +1442,7 @@ def main():
                 if radar_fig:
                     st.plotly_chart(radar_fig, use_container_width=True)
                 else:
-                    st.info(f"Ingen data tilgjengelig for {phase}")
+                    st.info(f"ℹ️ Ingen data tilgjengelig for {phase}")
         
         # Detaljert rapport
         st.subheader("📋 Detaljert Rapport")
@@ -1411,7 +1457,8 @@ def main():
                 label="📄 Last ned rapport som TXT",
                 data=report_text,
                 file_name=f"modenhetsvurdering_rapport_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                mime="text/plain"
+                mime="text/plain",
+                use_container_width=True
             )
         
         with col2:
@@ -1423,10 +1470,11 @@ def main():
                     label="📊 Last ned rapport som PDF",
                     data=pdf_output,
                     file_name=f"modenhetsvurdering_rapport_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                    mime="application/pdf"
+                    mime="application/pdf",
+                    use_container_width=True
                 )
             except Exception as e:
-                st.error(f"Kunne ikke generere PDF: {e}")
+                st.error(f"❌ Kunne ikke generere PDF: {e}")
         
         with col3:
             # CSV data
@@ -1447,14 +1495,15 @@ def main():
             df = pd.DataFrame(csv_data[1:], columns=csv_data[0])
             csv_string = df.to_csv(index=False, sep=';')
             st.download_button(
-                label="📊 Last ned data som CSV",
+                label="📈 Last ned data som CSV",
                 data=csv_string,
                 file_name=f"modenhetsvurdering_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv"
+                mime="text/csv",
+                use_container_width=True
             )
         
         # Forbedringsområder
-        st.subheader(" Forbedringsområder")
+        st.subheader("⚠️ Forbedringsområder")
         improvement_found = False
         
         for phase in phases_data:
@@ -1468,29 +1517,37 @@ def main():
             if low_scores:
                 st.write(f"**{phase}:**")
                 for question, score in low_scores:
-                    st.write(f"- {question['title']} (Score: {score})")
+                    st.write(f"🔸 {question['title']} (Score: {score})")
         
         if not improvement_found:
-            st.success("Ingen forbedringsområder identifisert! Alle scores er 3 eller høyere.")
+            st.success("✅ Ingen forbedringsområder identifisert! Alle scores er 3 eller høyere.")
     
     # Informasjon om appen
     with st.expander("ℹ️ Om denne appen"):
         st.markdown("""
-        **Funksjonalitet:**
+        **🎯 Funksjonalitet:**
         - Vurder modenhet i gevinstrealisering gjennom 4 faser
         - Auto-lagring av alle svar
         - Generer visuelle rapporter og diagrammer
         - Identifiser forbedringsområder
         - Eksporter rapporter i TXT, PDF og CSV format
         
-        **Bruk:**
+        **📖 Bruk:**
         1. Velg fase i sidebar
         2. Gå gjennom hvert spørsmål
         3. Velg score og skriv notater
         4. Trykk "Lagre svar" for hvert spørsmål
         5. Trykk "Generer Full Rapport" for resultater
         
-        **Data lagres lokalt i nettleseren og forsvinner ved oppdatering.**
+        **💾 Data lagres lokalt i nettleseren og forsvinner ved oppdatering.**
+        
+        **🚆 Ikoner fra Bane NOR:**
+        - 🚆 Jernbanespor - Helhetlig gevinstrealisering
+        - 📊 Analyse - Modenhetsvurdering
+        - 🎯 Mål - Strategisk retning
+        - ⚡ Momentum - Tidlig gevinstuttak
+        - 📈 Gevinst - Resultatmåling
+        - ⚠️ Advarsel - Forbedringsområder
         """)
 
 if __name__ == "__main__":
