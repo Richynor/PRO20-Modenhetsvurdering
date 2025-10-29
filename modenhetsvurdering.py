@@ -18,7 +18,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Prøv å laste Bane NOR logo
+# Laste Bane NOR logo
 try:
     st.sidebar.image("bane_nor_logo.png.jpg", use_container_width=True)
 except FileNotFoundError:
@@ -1110,7 +1110,7 @@ def generate_phase_radar_chart(phase_name, questions, responses):
         theta=categories,
         fill='toself',
         name='Score',
-        line=dict(color='#BA0C2F'),  # Bane NOR rød
+        line=dict(color='#BA0C2F'),  # Bane NOR
         fillcolor='rgba(186, 12, 47, 0.3)'
     ))
     
@@ -1162,7 +1162,7 @@ def generate_report():
                 report.append(f"   Notater: {response['notes']}")
             report.append("")
     
-    # Forbedringsområder
+    # Vesentlige forbedringsområder
     report.append("FORBEDRINGSOMRÅDER (Score < 3)")
     report.append("-" * 30)
     improvement_areas = []
@@ -1260,10 +1260,10 @@ def create_pdf_report():
         
         pdf.ln(5)
     
-    # Forbedringsområder
+    # Vesentlige forbedringsområder
     pdf.add_page()
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, 'FORBEDRINGSOMRÅDER (Score < 3)', 0, 1)
+    pdf.cell(0, 10, 'VESENTLIGE FORBEDRINGSOMRÅDER (Score < 3)', 0, 1)
     pdf.set_font('Arial', '', 10)
     
     improvement_found = False
@@ -1315,7 +1315,7 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    st.markdown('<h1 class="main-header">🚆 Modenhetsvurdering - Gevinstrealisering</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">PRO20 Modenhetsvurdering-Gevinstrealisering</h1>', unsafe_allow_html=True)
     st.markdown("**Interaktiv vurdering av modenhet i gevinstrealisering gjennom fire faser**")
     st.markdown("---")
     
@@ -1324,7 +1324,7 @@ def main():
     
     # Sidebar for navigasjon og oversikt
     with st.sidebar:
-        st.markdown('<h2 style="color: #BA0C2F;">📊 Oversikt</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 style="color: #BA0C2F;"> Oversikt</h2>', unsafe_allow_html=True)
         
         selected_phase = st.selectbox(
             "Velg fase:",
@@ -1367,7 +1367,7 @@ def main():
             st.write(f"**Spørsmål:** {question['question']}")
             
             # Modenhetsskala
-            st.subheader("📊 Modenhetsskala:")
+            st.subheader(" Modenhetsskala:")
             for i, level in enumerate(question['scale']):
                 # Fjern duplisert "Nivå X:" fra visningen
                 level_text = level
@@ -1379,7 +1379,7 @@ def main():
             # Score input
             current_score = response['score']
             new_score = st.radio(
-                "🎯 Velg din vurdering:",
+                "Velg vurdering:",
                 options=[1, 2, 3, 4, 5],
                 index=current_score-1 if current_score > 0 else 0,
                 key=f"score_{selected_phase}_{question['id']}",
@@ -1389,7 +1389,7 @@ def main():
             # Notater
             current_notes = response['notes']
             new_notes = st.text_area(
-                "📝 Dine notater og kommentarer:",
+                "📝 Notater og kommentarer:",
                 value=current_notes,
                 key=f"notes_{selected_phase}_{question['id']}",
                 placeholder="Skriv dine observasjoner her...",
@@ -1412,7 +1412,7 @@ def main():
     st.markdown("---")
     st.markdown('<h2 style="color: #BA0C2F;">📈 Resultatoversikt</h2>', unsafe_allow_html=True)
     
-    if st.button("🚀 Generer Full Rapport", type="primary", use_container_width=True):
+    if st.button(" Generer Full Rapport", type="primary", use_container_width=True):
         stats = calculate_stats()
         
         # Visuelle visualiseringer
@@ -1443,7 +1443,7 @@ def main():
                 st.plotly_chart(radar_fig, use_container_width=True)
         
         # Detaljerte radardiagrammer per fase
-        st.subheader("🎯 Detaljert Modenhet per Fase")
+        st.subheader(" Detaljert Modenhet per Fase")
         for phase in phases_data:
             phase_questions = phases_data[phase]
             phase_responses = st.session_state.responses[phase]
@@ -1534,12 +1534,12 @@ def main():
                     st.write(f"🔸 {question['title']} (Score: {score})")
         
         if not improvement_found:
-            st.success("✅ Ingen forbedringsområder identifisert! Alle scores er 3 eller høyere.")
+            st.success("✅ Ikke vesentlige forbedringsområder identifisert! Det jobbes aktivt med gevinstrealisering")
     
     # Informasjon om appen
     with st.expander("ℹ️ Om denne appen"):
         st.markdown("""
-        **🎯 Funksjonalitet:**
+        **Funksjonalitet:**
         - Vurder modenhet i gevinstrealisering gjennom 4 faser
         - Auto-lagring av alle svar
         - Generer visuelle rapporter og diagrammer
@@ -1553,14 +1553,11 @@ def main():
         4. Trykk "Lagre svar" for hvert spørsmål
         5. Trykk "Generer Full Rapport" for resultater
         
-        **💾 Data lagres lokalt i nettleseren og forsvinner ved oppdatering.**
+        **💾 OBS! Data lagres lokalt i nettleseren og forsvinner ved oppdatering.**
         
-        **🚆 Ikoner fra Bane NOR:**
-        - 🚆 Jernbanespor - Helhetlig gevinstrealisering
-        - 📊 Analyse - Modenhetsvurdering
+        ** Ikoner fra Bane NOR:**
         - 🎯 Mål - Strategisk retning
         - ⚡ Momentum - Tidlig gevinstuttak
-        - 📈 Gevinst - Resultatmåling
         - ⚠️ Advarsel - Forbedringsområder
         """)
 
