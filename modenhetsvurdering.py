@@ -29,7 +29,7 @@ except FileNotFoundError:
     </div>
     """, unsafe_allow_html=True)
 
-# Komplett spørresett fra dokumentet ditt
+# Komplett spørresett fra dokumentet
 phases_data = {
     "Planlegging": [
         {
@@ -1130,7 +1130,7 @@ def generate_phase_radar_chart(phase_name, questions, responses):
     return fig
 
 def generate_report():
-    """Generer en detaljert rapport"""
+    """Detaljert rapport"""
     report = []
     report.append("MODENHETSVURDERING - GEVINSTREALISERING")
     report.append("=" * 50)
@@ -1303,7 +1303,7 @@ def main():
     # Hovedinnhold - spørsmålsvisning
     st.header(f"📝 {selected_phase}")
     
-    # Vis alle spørsmål i expandere
+    # Alle spørsmål i expandere
     for question in phases_data[selected_phase]:
         response = st.session_state.responses[selected_phase][question['id']]
         
