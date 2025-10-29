@@ -290,7 +290,7 @@ phases_data = {
         {
             "id": 1,
             "title": "Oppfølging av måltall og operativ justering",
-            "question": "Hvor systematisk følges måltallene opp, og justeres estimatene njen forutsetningene endres - inkludert endringer i operative forhold som strekninger og togfremføring?",
+            "question": "Hvor systematisk følges måltallene opp, og justeres estimatene når forutsetningene endres - inkludert endringer i operative forhold som strekninger og togfremføring?",
             "scale": [
                 "Nivå 1: Ingen oppfølging eller justering.",
                 "Nivå 2: Oppfølging skjer sporadisk uten tilpasning til operative forhold.",
