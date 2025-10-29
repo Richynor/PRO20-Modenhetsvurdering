@@ -52,7 +52,7 @@ phases_data = {
                 "Nivå 1: Gevinster er vagt definert, uten tydelig kobling til strategi.",
                 "Nivå 2: Gevinster er identifisert, men mangler klare kriterier og prioritering.",
                 "Nivå 3: Gevinster er dokumentert og delvis knyttet til strategiske mål, men grunnlaget har usikkerhet.",
-                "Nivå 4: Gevinster er tydelik koblet til strategiske mål med konkrete måltall.",
+                "Nivå 4: Gevinster er tydelig koblet til strategiske mål med konkrete måltall.",
                 "Nivå 5: Gevinster er fullt integrert i styringssystemet og brukes i beslutninger."
             ]
         },
@@ -204,7 +204,7 @@ phases_data = {
         {
             "id": 15,
             "title": "Periodisering og forankring",
-            "question": "Er gevinstrealiseringsplanen periodisert, validert og godkjent av ansvarlige eiere?",
+            "question": "Er gevinstrealiseringsplanen periodisert, validet og godkjent av ansvarlige eiere?",
             "scale": [
                 "Nivå 1: Ingen tidsplan eller forankring.",
                 "Nivå 2: Tidsplan foreligger, men ikke validet.",
@@ -290,7 +290,7 @@ phases_data = {
         {
             "id": 1,
             "title": "Oppfølging av måltall og operativ justering",
-            "question": "Hvor systematisk følges måltallene opp, og justeres estimatene når forutsetningene endres - inkludert endringer i operative forhold som strekninger og togfremføring?",
+            "question": "Hvor systematisk følges måltallene opp, og justeres estimatene njen forutsetningene endres - inkludert endringer i operative forhold som strekninger og togfremføring?",
             "scale": [
                 "Nivå 1: Ingen oppfølging eller justering.",
                 "Nivå 2: Oppfølging skjer sporadisk uten tilpasning til operative forhold.",
@@ -368,7 +368,7 @@ phases_data = {
                 "Nivå 2: Balansen vurderes uformelt ved behov.",
                 "Nivå 3: Balansen vurderes i noen styringsmøter.",
                 "Nivå 4: Systematisk vurdering av balansen og justering av tiltak.",
-                "Nivå 5: Kontinuerlig vurdering av balansen er en integrert del av styringen."
+                "Nivå 5: Kontinuerlig vurdering van balansen er en integrert del av styringen."
             ]
         },
         {
@@ -1174,7 +1174,7 @@ def generate_report():
     
     if improvement_areas:
         for phase, question, score in improvement_areas:
-            report.append(f"• {phase} - {question['title']} (Score: {score})")
+            report.append(f"- {phase} - {question['title']} (Score: {score})")
     else:
         report.append("Ingen forbedringsområder identifisert")
     
@@ -1190,6 +1190,10 @@ def clean_text(text):
         '✗': '[X]',
         '–': '-',
         '—': '-',
+        '´': "'",
+        '`': "'",
+        '•': '-',  # Bullet point til bindestrek
+        '\u2022': '-',  # Unicode bullet point til bindestrek
         '´': "'",
         '`': "'"
     }
@@ -1267,7 +1271,7 @@ def create_pdf_report():
         for question in phases_data[phase]:
             response = st.session_state.responses[phase][question['id']]
             if response['completed'] and 0 < response['score'] < 3:
-                pdf.multi_cell(0, 8, clean_text(f'• {phase} - {question["title"]} (Score: {response["score"]})'))
+                pdf.multi_cell(0, 8, clean_text(f'- {phase} - {question["title"]} (Score: {response["score"]})'))
                 improvement_found = True
     
     if not improvement_found:
@@ -1278,10 +1282,14 @@ def create_pdf_report():
 def get_pdf_download_link(pdf):
     """Generer download link for PDF"""
     try:
-        pdf_output = pdf.output(dest='S').encode('latin-1')
-    except:
+        pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
+    except Exception as e:
         # Fallback til UTF-8 hvis latin-1 feiler
-        pdf_output = pdf.output(dest='S').encode('utf-8')
+        try:
+            pdf_output = pdf.output(dest='S').encode('utf-8', 'replace')
+        except:
+            st.error(f"Kunne ikke generere PDF: {e}")
+            return None
     b64 = base64.b64encode(pdf_output).decode()
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="modenhetsvurdering_rapport.pdf">Last ned PDF Rapport</a>'
     return href
@@ -1361,7 +1369,12 @@ def main():
             # Modenhetsskala
             st.subheader("📊 Modenhetsskala:")
             for i, level in enumerate(question['scale']):
-                st.write(f"**Nivå {i+1}:** {level}")
+                # Fjern duplisert "Nivå X:" fra visningen
+                level_text = level
+                if level_text.startswith(f"Nivå {i+1}:"):
+                    # Behold bare én "Nivå X:" i teksten
+                    level_text = level_text
+                st.write(f"**{level_text}**")
             
             # Score input
             current_score = response['score']
@@ -1465,14 +1478,15 @@ def main():
             # PDF rapport
             try:
                 pdf = create_pdf_report()
-                pdf_output = pdf.output(dest='S').encode('latin-1')
-                st.download_button(
-                    label="📊 Last ned rapport som PDF",
-                    data=pdf_output,
-                    file_name=f"modenhetsvurdering_rapport_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+                if pdf:
+                    pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
+                    st.download_button(
+                        label="📊 Last ned rapport som PDF",
+                        data=pdf_output,
+                        file_name=f"modenhetsvurdering_rapport_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
             except Exception as e:
                 st.error(f"❌ Kunne ikke generere PDF: {e}")
         
