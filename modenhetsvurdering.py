@@ -1452,7 +1452,7 @@ def get_pdf_download_link(pdf):
     return href
 
 def main():
-    # NY FARGEKONFIGURASJON
+    # NY FARGEKONFIGURASJON MED OPPDATERT MODENHETSKODING
     st.markdown("""
         <style>
         .main-header {
@@ -1508,6 +1508,13 @@ def main():
             border-left: 4px solid #FFA040;
             margin: 1rem 0;
         }
+        .critical-box {
+            background-color: rgba(255, 107, 107, 0.1);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid #FF6B6B;
+            margin: 1rem 0;
+        }
         .sidebar .sidebar-content {
             background-color: #F2FAFD;
         }
@@ -1522,16 +1529,20 @@ def main():
         h1, h2, h3 {
             color: #172141;
         }
-        .score-high {
-            color: #35DE6D;
+        .score-critical {
+            color: #FF6B6B;
             font-weight: bold;
         }
         .score-medium {
             color: #FFA040;
             font-weight: bold;
         }
-        .score-low {
-            color: #FF6B6B;
+        .score-good {
+            color: #64C8FA;
+            font-weight: bold;
+        }
+        .score-high {
+            color: #35DE6D;
             font-weight: bold;
         }
         </style>
@@ -1566,14 +1577,24 @@ def main():
             
             if phase_stats['count'] > 0:
                 avg_score = phase_stats['average']
-                score_class = "score-high" if avg_score >= 4 else "score-medium" if avg_score >= 3 else "score-low"
+                if avg_score >= 4:
+                    score_class = "score-good"
+                elif avg_score >= 3:
+                    score_class = "score-medium"
+                else:
+                    score_class = "score-critical"
                 st.write(f"Gjennomsnittsscore: **<span class='{score_class}'>{avg_score:.2f}</span>**", unsafe_allow_html=True)
         
         st.markdown("---")
         st.subheader("Hurtigstatistikk")
         for phase, stat in stats.items():
             if stat['count'] > 0:
-                score_class = "score-high" if stat['average'] >= 4 else "score-medium" if stat['average'] >= 3 else "score-low"
+                if stat['average'] >= 4:
+                    score_class = "score-good"
+                elif stat['average'] >= 3:
+                    score_class = "score-medium"
+                else:
+                    score_class = "score-critical"
                 st.write(f"**{phase}:** <span class='{score_class}'>{stat['average']:.2f}</span>", unsafe_allow_html=True)
     
     # Hovedinnhold - spørsmålsvisning
@@ -1596,8 +1617,19 @@ def main():
         expander_label = f"{question['id']}. {question['title']} - "
         if response['completed']:
             score = response['score']
-            score_class = "score-high" if score >= 4 else "score-medium" if score >= 3 else "score-low"
-            expander_label += f"Score: <span class='{score_class}'>{score}</span>"
+            if score >= 5:
+                score_class = "score-high"
+                score_text = "Høy modenhet"
+            elif score >= 4:
+                score_class = "score-good"
+                score_text = "God modenhet"
+            elif score >= 3:
+                score_class = "score-medium"
+                score_text = "Begrenset modenhet"
+            else:
+                score_class = "score-critical"
+                score_text = "Vesentlig lav modenhet"
+            expander_label += f"<span class='{score_class}'>{score} ({score_text})</span>"
         else:
             expander_label += "Ikke vurdert"
         
@@ -1605,13 +1637,22 @@ def main():
             # Bruk "Spørsmål:" i stedet for å gjenta nummeret
             st.write(f"**Spørsmål:** {question['question']}")
             
-            # Modenhetsskala
+            # Modenhetsskala med fargekoding
             st.subheader("Modenhetsskala:")
+            
+            # Definer farger og beskrivelser for hvert nivå
+            level_descriptions = {
+                1: {"color": "#FF6B6B", "text": "Vesentlig lav modenhet"},
+                2: {"color": "#FF6B6B", "text": "Vesentlig lav modenhet"}, 
+                3: {"color": "#FFA040", "text": "Begrenset modenhet"},
+                4: {"color": "#64C8FA", "text": "God modenhet"},
+                5: {"color": "#35DE6D", "text": "Høy modenhet"}
+            }
+            
             for i, level in enumerate(question['scale']):
-                # Vis nivå med fargekoding
-                level_text = level
-                color = "#35DE6D" if i >= 3 else "#FFA040" if i >= 2 else "#FF6B6B"
-                st.markdown(f"<span style='color: {color}; font-weight: bold;'>Nivå {i+1}:</span> {level_text[len(f'Nivå {i+1}:'):]}", unsafe_allow_html=True)
+                level_num = i + 1
+                level_info = level_descriptions[level_num]
+                st.markdown(f"<span style='color: {level_info['color']}; font-weight: bold;'>Nivå {level_num} ({level_info['text']}):</span> {level[len(f'Nivå {level_num}:'):]}", unsafe_allow_html=True)
             
             # Score input
             current_score = response['score']
@@ -1622,7 +1663,13 @@ def main():
                 index=current_score-1 if current_score > 0 else 0,
                 key=f"score_{selected_phase}_{question['id']}",
                 horizontal=True,
-                format_func=lambda x: f"Nivå {x}"
+                format_func=lambda x: {
+                    1: "Nivå 1 - Vesentlig lav modenhet",
+                    2: "Nivå 2 - Vesentlig lav modenhet", 
+                    3: "Nivå 3 - Begrenset modenhet",
+                    4: "Nivå 4 - God modenhet",
+                    5: "Nivå 5 - Høy modenhet"
+                }[x]
             )
             
             # Notater
@@ -1631,7 +1678,7 @@ def main():
                 "Notater og kommentarer:",
                 value=current_notes,
                 key=f"notes_{selected_phase}_{question['id']}",
-                placeholder="Skriv dine observasjoner, begrunnelse for score, eller forbedringsforslag her...",
+                placeholder="Observasjoner, begrunnelse for score, eller forbedringsforslag her...",
                 height=100
             )
             
@@ -1669,7 +1716,7 @@ def main():
                     title="Gjennomsnittsscore per Fase",
                     labels={'x': 'Fase', 'y': 'Gjennomsnittsscore'},
                     color=averages,
-                    color_continuous_scale=['#FFA040', '#35DE6D', '#64C8FA', '#0053A6', '#172141']
+                    color_continuous_scale=['#FF6B6B', '#FFA040', '#64C8FA', '#35DE6D']
                 )
                 fig_bar.update_layout(
                     yaxis_range=[0, 5.5],
@@ -1776,8 +1823,8 @@ def main():
             if low_scores:
                 st.write(f"**{phase}:**")
                 for question, score in low_scores:
-                    score_class = "score-medium" if score == 2 else "score-low"
-                    st.write(f"- <span class='{score_class}'>{question['title']} (Score: {score})</span>", unsafe_allow_html=True)
+                    score_class = "score-critical"
+                    st.write(f"- <span class='{score_class}'>{question['title']} (Score: {score} - Vesentlig lav modenhet)</span>", unsafe_allow_html=True)
         
         if not improvement_found:
             st.markdown('<div class="success-box">Ingen vesentlige forbedringsområder identifisert! Organisasjonen jobber aktivt med gevinstrealisering.</div>', unsafe_allow_html=True)
@@ -1794,12 +1841,14 @@ def main():
             st.warning("Fortsett å fylle ut vurderingen for mer presise anbefalinger")
         else:
             overall_avg = np.mean([stats[phase]['average'] for phase in stats if stats[phase]['count'] > 0])
-            if overall_avg >= 4:
-                st.success("Utmerket modenhet! Fokus på å opprettholde og dokumentere beste praksis")
+            if overall_avg = 5:
+                st.success("Utmerket modenhet!")
+            elif overall_avg >= 4:
+                st.success("God modenhet! Fokus på å opprettholde og dokumentere beste praksis")
             elif overall_avg >= 3:
-                st.info("God modenhet! Arbeid med å styrke svakere områder for å oppnå høyere modenhet")
+                st.info("Begrenset modenhet! Arbeid med å styrke svakere områder for å oppnå høyere modenhet")
             else:
-                st.warning("Modenheten trenger forbedring. Fokuser på de identifiserte forbedringsområdene")
+                st.markdown('<div class="critical-box">Modenheten trenger forbedring. Fokuser på de identifiserte forbedringsområdene med vesentlig lav modenhet.</div>', unsafe_allow_html=True)
     
     # Informasjon om appen
     with st.expander("Om denne appen"):
@@ -1821,10 +1870,11 @@ def main():
         
         **OBS! Data lagres lokalt i nettleseren og forsvinner ved oppdatering.**
         
-        **Fargekoding:**
-        - <span style='color: #35DE6D'>Grønn</span>: Høy modenhet (4-5)
-        - <span style='color: #FFA040'>Oransje</span>: Medium modenhet (3)
-        - <span style='color: #FF6B6B'>Rød</span>: Lav modenhet (1-2)
+        **Modenhetskoding:**
+        - <span style='color: #FF6B6B'>Rød (1-2)</span>: Vesentlig lav modenhet
+        - <span style='color: #FFA040'>Oransje (3)</span>: Begrenset modenhet
+        - <span style='color: #64C8FA'>Blå (4)</span>: God modenhet
+        - <span style='color: #35DE6D'>Grønn (5)</span>: Høy modenhet
         </div>
         """, unsafe_allow_html=True)
 
