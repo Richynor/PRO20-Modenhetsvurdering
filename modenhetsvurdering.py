@@ -1841,7 +1841,7 @@ def main():
             st.warning("Fortsett å fylle ut vurderingen for mer presise anbefalinger")
         else:
             overall_avg = np.mean([stats[phase]['average'] for phase in stats if stats[phase]['count'] > 0])
-            if overall_avg = 5:
+            if overall_avg == 5:
                 st.success("Utmerket modenhet!")
             elif overall_avg >= 4:
                 st.success("God modenhet! Fokus på å opprettholde og dokumentere beste praksis")
