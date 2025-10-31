@@ -301,7 +301,7 @@ phases_data = {
             "title": "Bygge momentum og tidlig gevinstuttak",
             "question": "Hvordan planlegges det for å bygge momentum og realisere tidlige gevinster underveis i programmet?",
             "scale": [
-                "Nivå 1: Ingen plan for tidlig gevinstuttak eller oppbyggning av momentum.",
+                "Nivå 1: Ingen plan for tidlig gevinstuttak eller oppbygging av momentum.",
                 "Nivå 2: Enkelte uformelle vurderinger av tidlige gevinster.",
                 "Nivå 3: Plan for tidlig gevinstuttak er identifisert, men ikke koordinert.",
                 "Nivå 4: Strukturert tilnærming for tidlig gevinstuttak med tildelt ansvar.",
@@ -485,7 +485,7 @@ phases_data = {
             "scale": [
                 "Nivå 1: Balansen vurderes ikke under gjennomføring.",
                 "Nivå 2: Balansen vurderes ved store endringer.",
-                "Nivå 3: Regelmessig vurdering av balansen.",
+                "Nivå 3: Regelmessig vurdering van balansen.",
                 "Nivå 4: Systematisk overvåkning van balansen.",
                 "Nivå 5: Balansevurdering integrert i beslutningsprosesser."
             ]
@@ -552,7 +552,7 @@ phases_data = {
         },
         {
             "id": 21,
-            "title": "Periodisering og forankring",
+            "title": "Periodisierung og forankring",
             "question": "Hvordan justeres periodisering og forankring under gjennomføring?",
             "scale": [
                 "Nivå 1: Periodisering justeres ikke under gjennomføring.",
@@ -644,7 +644,7 @@ phases_data = {
                 "Nivå 1: Avgrensning håndteres ikke under realisering.",
                 "Nivå 2: Store avgrensningsutfordringer håndteres.",
                 "Nivå 3: System for å håndtere avgrensning.",
-                "Nivå 4: Proaktiv håndtering av avgrensning.",
+                "Nivå 4: Proaktiv håndtering van avgrensning.",
                 "Nivå 5: Avgrensning integrert i realiseringsprosessen."
             ]
         },
@@ -1617,18 +1617,21 @@ def main():
         expander_label = f"{question['id']}. {question['title']} - "
         if response['completed']:
             score = response['score']
-            if score >= 5:
+            if score == 5:
                 score_class = "score-high"
                 score_text = "Høy modenhet"
-            elif score >= 4:
+            elif score == 4:
                 score_class = "score-good"
                 score_text = "God modenhet"
-            elif score >= 3:
+            elif score == 3:
                 score_class = "score-medium"
-                score_text = "Begrenset modenhet"
-            else:
+                score_text = "Moderat modenhet"
+            elif score == 2:
                 score_class = "score-critical"
-                score_text = "Vesentlig lav modenhet"
+                score_text = "Begrenset modenhet"
+            else:  # score == 1
+                score_class = "score-critical"
+                score_text = "Lav modenhet"
             expander_label += f"<span class='{score_class}'>{score} ({score_text})</span>"
         else:
             expander_label += "Ikke vurdert"
@@ -1637,24 +1640,12 @@ def main():
             # Bruk "Spørsmål:" i stedet for å gjenta nummeret
             st.write(f"**Spørsmål:** {question['question']}")
             
-            # Modenhetsskala med fargekoding
+            # Modenhetsskala - viser kun nivåene i standard sort farge
             st.subheader("Modenhetsskala:")
+            for level in question['scale']:
+                st.write(level)
             
-            # Definer farger og beskrivelser for hvert nivå
-            level_descriptions = {
-                1: {"color": "#FF6B6B", "text": "Vesentlig lav modenhet"},
-                2: {"color": "#FF6B6B", "text": "Vesentlig lav modenhet"}, 
-                3: {"color": "#FFA040", "text": "Begrenset modenhet"},
-                4: {"color": "#64C8FA", "text": "God modenhet"},
-                5: {"color": "#35DE6D", "text": "Høy modenhet"}
-            }
-            
-            for i, level in enumerate(question['scale']):
-                level_num = i + 1
-                level_info = level_descriptions[level_num]
-                st.markdown(f"<span style='color: {level_info['color']}; font-weight: bold;'>Nivå {level_num} ({level_info['text']}):</span> {level[len(f'Nivå {level_num}:'):]}", unsafe_allow_html=True)
-            
-            # Score input
+            # Score input med forklaring i radioknappene
             current_score = response['score']
             st.subheader("Din vurdering:")
             new_score = st.radio(
@@ -1664,9 +1655,9 @@ def main():
                 key=f"score_{selected_phase}_{question['id']}",
                 horizontal=True,
                 format_func=lambda x: {
-                    1: "Nivå 1 - Vesentlig lav modenhet",
-                    2: "Nivå 2 - Vesentlig lav modenhet", 
-                    3: "Nivå 3 - Begrenset modenhet",
+                    1: "Nivå 1 - Lav modenhet",
+                    2: "Nivå 2 - Begrenset modenhet", 
+                    3: "Nivå 3 - Moderat modenhet",
                     4: "Nivå 4 - God modenhet",
                     5: "Nivå 5 - Høy modenhet"
                 }[x]
@@ -1824,7 +1815,7 @@ def main():
                 st.write(f"**{phase}:**")
                 for question, score in low_scores:
                     score_class = "score-critical"
-                    st.write(f"- <span class='{score_class}'>{question['title']} (Score: {score} - Vesentlig lav modenhet)</span>", unsafe_allow_html=True)
+                    st.write(f"- <span class='{score_class}'>{question['title']} (Score: {score} - Lav/Begrenset modenhet)</span>", unsafe_allow_html=True)
         
         if not improvement_found:
             st.markdown('<div class="success-box">Ingen vesentlige forbedringsområder identifisert! Organisasjonen jobber aktivt med gevinstrealisering.</div>', unsafe_allow_html=True)
@@ -1842,13 +1833,13 @@ def main():
         else:
             overall_avg = np.mean([stats[phase]['average'] for phase in stats if stats[phase]['count'] > 0])
             if overall_avg == 5:
-                st.success("Utmerket modenhet!")
+                st.success("Utmerket modenhet! Høy modenhet på alle områder.")
             elif overall_avg >= 4:
-                st.success("God modenhet! Fokus på å opprettholde og dokumentere beste praksis")
+                st.success("God modenhet! Fokus på å opprettholde og dokumentere beste praksis.")
             elif overall_avg >= 3:
-                st.info("Begrenset modenhet! Arbeid med å styrke svakere områder for å oppnå høyere modenhet")
+                st.info("Moderat modenhet! Arbeid med å styrke svakere områder for å oppnå høyere modenhet.")
             else:
-                st.markdown('<div class="critical-box">Modenheten trenger forbedring. Fokuser på de identifiserte forbedringsområdene med vesentlig lav modenhet.</div>', unsafe_allow_html=True)
+                st.markdown('<div class="critical-box">Lav/Begrenset modenhet. Fokuser på de identifiserte forbedringsområdene.</div>', unsafe_allow_html=True)
     
     # Informasjon om appen
     with st.expander("Om denne appen"):
@@ -1871,8 +1862,8 @@ def main():
         **OBS! Data lagres lokalt i nettleseren og forsvinner ved oppdatering.**
         
         **Modenhetskoding:**
-        - <span style='color: #FF6B6B'>Rød (1-2)</span>: Vesentlig lav modenhet
-        - <span style='color: #FFA040'>Oransje (3)</span>: Begrenset modenhet
+        - <span style='color: #FF6B6B'>Rød (1-2)</span>: Lav/Begrenset modenhet
+        - <span style='color: #FFA040'>Oransje (3)</span>: Moderat modenhet
         - <span style='color: #64C8FA'>Blå (4)</span>: God modenhet
         - <span style='color: #35DE6D'>Grønn (5)</span>: Høy modenhet
         </div>
