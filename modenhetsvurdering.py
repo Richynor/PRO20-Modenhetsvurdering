@@ -1216,7 +1216,7 @@ def generate_radar_chart(stats):
         ),
         showlegend=False,
         title="Modenhet per Fase - Radardiagram",
-        title_font=dict(size=16, color='#172141'),
+        title_font=dict(size=14, color='#172141'),
         height=400,
         paper_bgcolor='#F2FAFD',
         plot_bgcolor='#F2FAFD'
@@ -1367,7 +1367,7 @@ def create_pdf_report():
     pdf.set_font("Arial", size=12)
     
     # Titel
-    pdf.set_font('Arial', 'B', 16)
+    pdf.set_font('Arial', 'B', 14)
     pdf.set_text_color(23, 33, 65)  # #172141
     pdf.cell(0, 10, 'MODENHETSVURDERING - GEVINSTREALISERING', 0, 1, 'C')
     pdf.ln(5)
@@ -1647,9 +1647,9 @@ def main():
             
             # Score input med forklaring i radioknappene
             current_score = response['score']
-            st.subheader("Din vurdering:")
+            st.subheader("Vurdering:")
             new_score = st.radio(
-                "Velg modenhetsnivå:",
+                "Modenhetsnivå:",
                 options=[1, 2, 3, 4, 5],
                 index=current_score-1 if current_score > 0 else 0,
                 key=f"score_{selected_phase}_{question['id']}",
