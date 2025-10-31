@@ -1321,7 +1321,7 @@ def generate_report():
         for phase, question, score in improvement_areas:
             report.append(f"- {phase} - {question['title']} (Score: {score})")
     else:
-        report.append("Ingen forbedringsområder identifisert")
+        report.append("Ingen vesentlige forbedringsområder identifisert. Påpekte forbedringsområder i rapporten bør jobbes med.")
     
     return "\n".join(report)
 
@@ -1452,7 +1452,7 @@ def get_pdf_download_link(pdf):
     return href
 
 def main():
-    # NY FARGEKONFIGURASJON MED OPPDATERT MODENHETSKODING
+    # FARGEKONFIGURASJON MED  MODENHETSKODING
     st.markdown("""
         <style>
         .main-header {
