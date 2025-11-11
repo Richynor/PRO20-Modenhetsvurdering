@@ -13,7 +13,7 @@ import os
 
 # Konfigurer siden
 st.set_page_config(
-    page_title="PRO20: Gevinstrealisering - Modenhetsvurdering",
+    page_title="Gevinstrealisering - Modenhetsvurdering",
     page_icon=" ",
     layout="wide"
 )
