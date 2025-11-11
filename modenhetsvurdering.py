@@ -1548,7 +1548,7 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    st.markdown('<h1 class="main-header">PRO20 Modenhetsvurdering - Gevinstrealisering</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Modenhetsvurdering - Gevinstrealisering</h1>', unsafe_allow_html=True)
     st.markdown("**Interaktiv vurdering av modenhet i gevinstrealisering gjennom fire faser**")
     st.markdown("---")
     
