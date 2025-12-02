@@ -1,36 +1,41 @@
+"""
+MODENHETSVURDERING - GEVINSTREALISERING
+Bane NOR - Konsern Controlling
+
+Komplett løsning med:
+- Alle 23 spørsmål per fase
+- Multidimensjonale radardiagrammer
+- Multi-intervju støtte
+- Automatisk lagring
+
+Versjon: 3.0
+"""
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 from datetime import datetime
-import json
-import base64
-from io import BytesIO
-from fpdf import FPDF
-import tempfile
+import pickle
 import os
 
-# Konfigurer siden
+# ============================================================================
+# KONFIGURASJON
+# ============================================================================
 st.set_page_config(
-    page_title="Gevinstrealisering - Modenhetsvurdering",
-    page_icon=" ",
-    layout="wide"
+    page_title="Modenhetsvurdering - Gevinstrealisering",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Laste Bane NOR logo
-try:
-    st.sidebar.image("bane_nor_logo.png.jpg", use_container_width=True)
-except FileNotFoundError:
-    st.sidebar.markdown("""
-    <div style='text-align: center; color: 
-#172141;'>
-        <h1> </h1>
-        <h3>Bane NOR</h3>
-    </div>
-    """, unsafe_allow_html=True)
+# Datafil for automatisk lagring
+DATA_FILE = "modenhet_data.pkl"
 
-# Komplett spørresett fra dokumentet - Oppdatert med alle spørsmål
+# ============================================================================
+# KOMPLETT SPØRSMÅLSSETT - ALLE 23 SPØRSMÅL PER FASE
+# ============================================================================
 phases_data = {
     "Planlegging": [
         {
@@ -206,7 +211,7 @@ phases_data = {
             "title": "Balanse mellom gevinster og ulemper",
             "question": "Hvordan sikres det at balansen mellom gevinster og ulemper vurderes i styringsdialoger?",
             "scale": [
-                "Nivå 1: Ingen vurdering van balanse.",
+                "Nivå 1: Ingen vurdering av balanse.",
                 "Nivå 2: Diskuteres uformelt.",
                 "Nivå 3: Del av enkelte oppfølgingsmøter.",
                 "Nivå 4: Systematisk vurdert i gevinststyring.",
@@ -362,7 +367,7 @@ phases_data = {
         {
             "id": 5,
             "title": "Avgrensning av programgevinst",
-            "question": "Hvordan håndteres avgrensning av programgevinster under gjennomføring nye forhold oppstår?",
+            "question": "Hvordan håndteres avgrensning av programgevinster under gjennomføring når nye forhold oppstår?",
             "scale": [
                 "Nivå 1: Avgrensning glemmes under gjennomføring.",
                 "Nivå 2: Avgrensning omtales, men ikke operasjonalisert.",
@@ -461,7 +466,7 @@ phases_data = {
             "question": "Hvordan måles og følges opp effektivitet og produktivitet under gjennomføring?",
             "scale": [
                 "Nivå 1: Effektivitet og produktivitet måles ikke underveis.",
-                "Nivå 2: Noen måleregistreres, men ikke analysert.",
+                "Nivå 2: Noen målinger registreres, men ikke analysert.",
                 "Nivå 3: Systematisk måling med begrenset analyse.",
                 "Nivå 4: Regelmessig analyse og justering basert på målinger.",
                 "Nivå 5: Realtids overvåkning og proaktiv justering."
@@ -486,8 +491,8 @@ phases_data = {
             "scale": [
                 "Nivå 1: Balansen vurderes ikke under gjennomføring.",
                 "Nivå 2: Balansen vurderes ved store endringer.",
-                "Nivå 3: Regelmessig vurdering van balansen.",
-                "Nivå 4: Systematisk overvåkning van balansen.",
+                "Nivå 3: Regelmessig vurdering av balansen.",
+                "Nivå 4: Systematisk overvåkning av balansen.",
                 "Nivå 5: Balansevurdering integrert i beslutningsprosesser."
             ]
         },
@@ -553,12 +558,12 @@ phases_data = {
         },
         {
             "id": 21,
-            "title": "Periodisierung og forankring",
+            "title": "Periodisering og forankring",
             "question": "Hvordan justeres periodisering og forankring under gjennomføring?",
             "scale": [
                 "Nivå 1: Periodisering justeres ikke under gjennomføring.",
                 "Nivå 2: Store justeringer i periodisering.",
-                "Nivå 3: Regelmessig revisjon van periodisering.",
+                "Nivå 3: Regelmessig revisjon av periodisering.",
                 "Nivå 4: Dynamisk tilpasning av periodisering.",
                 "Nivå 5: Fleksibel periodisering integrert i styringssystemet."
             ]
@@ -645,7 +650,7 @@ phases_data = {
                 "Nivå 1: Avgrensning håndteres ikke under realisering.",
                 "Nivå 2: Store avgrensningsutfordringer håndteres.",
                 "Nivå 3: System for å håndtere avgrensning.",
-                "Nivå 4: Proaktiv håndtering van avgrensning.",
+                "Nivå 4: Proaktiv håndtering av avgrensning.",
                 "Nivå 5: Avgrensning integrert i realiseringsprosessen."
             ]
         },
@@ -739,7 +744,7 @@ phases_data = {
             "question": "Hvordan måles og forbedres effektivitet og produktivitet under realiseringen?",
             "scale": [
                 "Nivå 1: Effektivitet og produktivitet måles ikke.",
-                "Nivå 2: Noen måleregistreres.",
+                "Nivå 2: Noen målinger registreres.",
                 "Nivå 3: Systematisk måling og rapportering.",
                 "Nivå 4: Målinger brukes til forbedring.",
                 "Nivå 5: Kontinuerlig forbedring basert på målinger."
@@ -1146,783 +1151,978 @@ phases_data = {
     ]
 }
 
-def initialize_session_state():
-    """Initialiser session state for å lagre svar"""
-    if 'responses' not in st.session_state:
-        st.session_state.responses = {}
-        for phase in phases_data:
-            st.session_state.responses[phase] = {}
-            for question in phases_data[phase]:
-                st.session_state.responses[phase][question['id']] = {
-                    'score': 0,
-                    'notes': '',
-                    'completed': False
-                }
+# ============================================================================
+# DATALAGRING
+# ============================================================================
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'rb') as f:
+                return pickle.load(f)
+        except:
+            pass
+    return {'projects': {}}
 
-def calculate_stats():
-    """Beregn statistikk for alle faser"""
-    stats = {}
+def save_data(data):
+    with open(DATA_FILE, 'wb') as f:
+        pickle.dump(data, f)
+
+def get_data():
+    if 'app_data' not in st.session_state:
+        st.session_state.app_data = load_data()
+    return st.session_state.app_data
+
+def persist_data():
+    save_data(st.session_state.app_data)
+
+# ============================================================================
+# STYLING
+# ============================================================================
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap');
+
+html, body, [class*="css"] { font-family: 'Source Sans Pro', sans-serif; }
+
+.main-header {
+    font-size: 2rem;
+    color: #172141;
+    text-align: center;
+    margin-bottom: 0.3rem;
+    font-weight: 700;
+}
+
+.sub-header {
+    font-size: 0.95rem;
+    color: #0053A6;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.phase-header {
+    color: #172141;
+    border-bottom: 3px solid #64C8FA;
+    padding-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 1.3rem;
+}
+
+.info-box {
+    background: linear-gradient(135deg, #C4EFFF 0%, #F2FAFD 100%);
+    padding: 1rem;
+    border-radius: 10px;
+    border-left: 4px solid #64C8FA;
+    margin: 0.8rem 0;
+}
+
+.success-box {
+    background: linear-gradient(135deg, #DDFAE2 0%, #F2FAFD 100%);
+    padding: 1rem;
+    border-radius: 10px;
+    border-left: 4px solid #35DE6D;
+    margin: 0.8rem 0;
+}
+
+.warning-box {
+    background: linear-gradient(135deg, rgba(255, 160, 64, 0.15) 0%, #F2FAFD 100%);
+    padding: 1rem;
+    border-radius: 10px;
+    border-left: 4px solid #FFA040;
+    margin: 0.8rem 0;
+}
+
+.critical-box {
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, #F2FAFD 100%);
+    padding: 1rem;
+    border-radius: 10px;
+    border-left: 4px solid #FF6B6B;
+    margin: 0.8rem 0;
+}
+
+.metric-card {
+    background: #F2FAFD;
+    padding: 1rem;
+    border-radius: 10px;
+    border-left: 4px solid #0053A6;
+    text-align: center;
+    margin: 0.3rem 0;
+}
+
+.metric-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #172141;
+}
+
+.metric-label {
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.stButton > button {
+    background: linear-gradient(135deg, #0053A6 0%, #172141 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 83, 166, 0.3);
+}
+
+.stExpander {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin: 0.3rem 0;
+}
+
+.stProgress > div > div > div > div {
+    background: linear-gradient(90deg, #64C8FA 0%, #35DE6D 100%);
+}
+
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================================================
+# HJELPEFUNKSJONER
+# ============================================================================
+def get_score_color(score):
+    if score >= 4.5: return "#35DE6D"
+    elif score >= 3.5: return "#64C8FA"
+    elif score >= 2.5: return "#FFA040"
+    else: return "#FF6B6B"
+
+def get_score_text(score):
+    if score >= 4.5: return "Høy modenhet"
+    elif score >= 3.5: return "God modenhet"
+    elif score >= 2.5: return "Moderat modenhet"
+    elif score >= 1.5: return "Begrenset modenhet"
+    else: return "Lav modenhet"
+
+def calculate_project_stats(project):
+    """Beregn statistikk for et prosjekt"""
+    if not project.get('interviews'):
+        return None
+    
+    all_scores = {}
     for phase in phases_data:
-        scores = []
-        completed_count = 0
-        for question in phases_data[phase]:
-            response = st.session_state.responses[phase][question['id']]
-            if response['completed'] and response['score'] > 0:
-                scores.append(response['score'])
-                completed_count += 1
-
-        if scores:
-            stats[phase] = {
-                'average': np.mean(scores),
-                'min': min(scores),
-                'max': max(scores),
-                'count': completed_count,
-                'total': len(phases_data[phase])
+        all_scores[phase] = {}
+        for q in phases_data[phase]:
+            all_scores[phase][q['id']] = []
+    
+    for interview in project['interviews'].values():
+        for phase, questions in interview.get('responses', {}).items():
+            for q_id, resp in questions.items():
+                if resp.get('score', 0) > 0:
+                    all_scores[phase][int(q_id)].append(resp['score'])
+    
+    stats = {
+        'phases': {},
+        'questions': {},
+        'total_interviews': len(project['interviews']),
+        'overall_avg': 0,
+        'improvement_areas': []
+    }
+    
+    all_avgs = []
+    
+    for phase in phases_data:
+        phase_scores = []
+        stats['questions'][phase] = {}
+        
+        for q in phases_data[phase]:
+            scores = all_scores[phase][q['id']]
+            if scores:
+                avg = np.mean(scores)
+                stats['questions'][phase][q['id']] = {
+                    'avg': avg,
+                    'min': min(scores),
+                    'max': max(scores),
+                    'count': len(scores),
+                    'title': q['title'],
+                    'scores': scores
+                }
+                phase_scores.append(avg)
+                all_avgs.append(avg)
+                
+                if avg < 3:
+                    stats['improvement_areas'].append({
+                        'phase': phase,
+                        'question_id': q['id'],
+                        'question': q['title'],
+                        'score': avg
+                    })
+        
+        if phase_scores:
+            stats['phases'][phase] = {
+                'avg': np.mean(phase_scores),
+                'min': min(phase_scores),
+                'max': max(phase_scores),
+                'scores': phase_scores
             }
-        else:
-            stats[phase] = {
-                'average': 0,
-                'min': 0,
-                'max': 0,
-                'count': 0,
-                'total': len(phases_data[phase])
-            }
+    
+    if all_avgs:
+        stats['overall_avg'] = np.mean(all_avgs)
+    
+    stats['improvement_areas'].sort(key=lambda x: x['score'])
+    
     return stats
 
-def generate_radar_chart(stats):
-    """Generer radardiagram for modenhet"""
-    phases = list(stats.keys())
-    averages = [stats[phase]['average'] for phase in phases]
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=averages + [averages[0]],  # Lukk radaren
-        theta=phases + [phases[0]],
-        fill='toself',
-        name='Modenhet',
-        line=dict(color='
-#0053A6', width=3),
-        fillcolor='rgba(0, 83, 166, 0.2)'
-    ))
-
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 5],
-                tickvals=[1, 2, 3, 4, 5],
-                gridcolor='
-#C4EFFF',
-                linecolor='
-#64C8FA'
-            ),
-            bgcolor='
-#F2FAFD'
-        ),
-        showlegend=False,
-        title="Modenhet per Fase - Radardiagram",
-        title_font=dict(size=14, color='
-#172141'),
-        height=400,
-        paper_bgcolor='
-#F2FAFD',
-        plot_bgcolor='
-#F2FAFD'
-    )
-
-    return fig
-
-def generate_phase_radar_chart(phase_name, questions, responses):
-    """Generer detaljert radardiagram for en spesifikk fase"""
-    categories = []
-    scores = []
-
-    for question in questions:
-        response = responses[question['id']]
-        if response['completed'] and response['score'] > 0:
-            categories.append(f"{question['id']}. {question['title']}")
-            scores.append(response['score'])
-
-    if not scores:
+# ============================================================================
+# VISUALISERINGER - MULTIDIMENSJONALE CHARTS
+# ============================================================================
+def create_phase_radar_chart(phase_data, title="Modenhet per fase"):
+    """Radardiagram for faser"""
+    if not phase_data or len(phase_data) < 3:
         return None
-
-    # Lukk radaren
-    categories.append(categories[0])
-    scores.append(scores[0])
-
+    
+    categories = list(phase_data.keys())
+    values = [phase_data[c]['avg'] for c in categories]
+    
     fig = go.Figure()
+    
     fig.add_trace(go.Scatterpolar(
-        r=scores,
-        theta=categories,
+        r=values + [values[0]],
+        theta=categories + [categories[0]],
         fill='toself',
-        name='Score',
-        line=dict(color='
-#64C8FA', width=2),
-        fillcolor='rgba(100, 200, 250, 0.3)'
+        fillcolor='rgba(0, 83, 166, 0.3)',
+        line=dict(color='#0053A6', width=3),
+        name='Gjennomsnitt'
     ))
-
+    
     fig.update_layout(
         polar=dict(
             radialaxis=dict(
                 visible=True,
                 range=[0, 5],
                 tickvals=[1, 2, 3, 4, 5],
-                gridcolor='
-#C4EFFF',
-                linecolor='
-#64C8FA'
+                gridcolor='#C4EFFF',
+                linecolor='#64C8FA'
             ),
-            bgcolor='
-#F2FAFD'
+            angularaxis=dict(gridcolor='#C4EFFF'),
+            bgcolor='#F2FAFD'
         ),
         showlegend=False,
-        title=f"Detaljert Modenhet - {phase_name}",
-        title_font=dict(size=14, color='
-#172141'),
-        height=500,
-        margin=dict(l=100, r=100, t=80, b=80),
-        paper_bgcolor='
-#F2FAFD',
-        plot_bgcolor='
-#F2FAFD'
+        title=dict(text=title, font=dict(size=16, color='#172141')),
+        height=450,
+        margin=dict(l=80, r=80, t=80, b=80),
+        paper_bgcolor='white'
     )
-
+    
     return fig
 
-def generate_report():
-    """Detaljert rapport"""
-    report = []
-    report.append("MODENHETSVURDERING - GEVINSTREALISERING")
-    report.append("=" * 50)
-    report.append(f"Rapport generert: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    report.append("")
+def create_detailed_phase_radar(question_data, phase_name):
+    """Detaljert radardiagram for alle spørsmål i en fase"""
+    if not question_data or len(question_data) < 3:
+        return None
+    
+    # Sorter etter spørsmåls-ID
+    sorted_items = sorted(question_data.items(), key=lambda x: x[0])
+    
+    categories = [f"{qid}. {data['title'][:25]}..." if len(data['title']) > 25 else f"{qid}. {data['title']}" 
+                  for qid, data in sorted_items]
+    values = [data['avg'] for _, data in sorted_items]
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatterpolar(
+        r=values + [values[0]],
+        theta=categories + [categories[0]],
+        fill='toself',
+        fillcolor='rgba(100, 200, 250, 0.3)',
+        line=dict(color='#64C8FA', width=2),
+        name=phase_name
+    ))
+    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 5],
+                tickvals=[1, 2, 3, 4, 5],
+                gridcolor='#e0e0e0'
+            ),
+            bgcolor='#F2FAFD'
+        ),
+        showlegend=False,
+        title=dict(text=f"Detaljert modenhet: {phase_name}", font=dict(size=14, color='#172141')),
+        height=550,
+        margin=dict(l=120, r=120, t=80, b=80),
+        paper_bgcolor='white'
+    )
+    
+    return fig
 
-    stats = calculate_stats()
+def create_interview_comparison_radar(project, phase_name):
+    """Sammenlign intervjuer i radardiagram"""
+    if not project.get('interviews') or len(project['interviews']) < 2:
+        return None
+    
+    fig = go.Figure()
+    
+    colors = ['#0053A6', '#64C8FA', '#35DE6D', '#FFA040', '#FF6B6B', '#9C27B0', '#795548']
+    
+    for idx, (int_id, interview) in enumerate(project['interviews'].items()):
+        int_name = interview['info'].get('interviewee', f'Intervju {idx+1}')[:15]
+        
+        if phase_name in interview.get('responses', {}):
+            q_ids = sorted([int(qid) for qid in interview['responses'][phase_name].keys()])
+            
+            categories = []
+            values = []
+            
+            for qid in q_ids:
+                resp = interview['responses'][phase_name].get(str(qid), {})
+                if resp.get('score', 0) > 0:
+                    # Finn tittel
+                    title = str(qid)
+                    for q in phases_data[phase_name]:
+                        if q['id'] == qid:
+                            title = f"{qid}. {q['title'][:15]}..."
+                            break
+                    categories.append(title)
+                    values.append(resp['score'])
+            
+            if len(categories) >= 3:
+                fig.add_trace(go.Scatterpolar(
+                    r=values + [values[0]],
+                    theta=categories + [categories[0]],
+                    name=int_name,
+                    fill='toself',
+                    opacity=0.5,
+                    line=dict(color=colors[idx % len(colors)], width=2)
+                ))
+    
+    if not fig.data:
+        return None
+    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 5])
+        ),
+        showlegend=True,
+        title=dict(text=f"Sammenligning: {phase_name}", font=dict(size=14, color='#172141')),
+        height=500,
+        paper_bgcolor='white'
+    )
+    
+    return fig
 
-    # Sammendrag
-    report.append("SAMMENDRAG")
-    report.append("-" * 20)
-    for phase, stat in stats.items():
-        report.append(f"{phase}: {stat['count']}/{stat['total']} fullført - Gjennomsnitt: {stat['average']:.2f}")
-    report.append("")
-
-    # Detaljert resultat per fase
-    for phase in phases_data:
-        report.append(f"FASE: {phase.upper()}")
-        report.append("-" * 30)
-
-        for question in phases_data[phase]:
-            response = st.session_state.responses[phase][question['id']]
-            status = "[OK]" if response['completed'] else "[X]"
-            score = response['score'] if response['score'] > 0 else "Ikke vurdert"
-
-            report.append(f"{status} {question['id']}. {question['title']}")
-            report.append(f"   Score: {score}")
-            if response['notes']:
-                report.append(f"   Notater: {response['notes']}")
-            report.append("")
-
-    # Vesentlige forbedringsområder
-    report.append("FORBEDRINGSOMRÅDER (Score < 3)")
-    report.append("-" * 30)
-    improvement_areas = []
-    for phase in phases_data:
-        for question in phases_data[phase]:
-            response = st.session_state.responses[phase][question['id']]
-            if response['completed'] and 0 < response['score'] < 3:
-                improvement_areas.append((phase, question, response['score']))
-
-    if improvement_areas:
-        for phase, question, score in improvement_areas:
-            report.append(f"- {phase} - {question['title']} (Score: {score})")
-    else:
-        report.append("Ingen vesentlige forbedringsområder identifisert. Påpekte forbedringsområder i rapporten bør jobbes med.")
-
-    return "\n".join(report)
-
-def clean_text(text):
-    """Hjelpefunksjon for å rense tekst for spesialtegn"""
-    if text is None:
-        return ""
-    # Erstatt spesialtegn med vanlig tekst
-    replacements = {
-        '✓': '[OK]',
-        '✗': '[X]',
-        '–': '-',
-        '—': '-',
-        '´': "'",
-        '': "'",
-        '•': '-',  # Bullet point til bindestrek
-        '\u2022': '-',  # Unicode bullet point til bindestrek
-        '´': "'",
-        '': "'"
-    }
-    cleaned = str(text)
-    for old, new in replacements.items():
-        cleaned = cleaned.replace(old, new)
-    return cleaned
-
-def create_pdf_report():
-    """Generer PDF rapport"""
-    class PDF(FPDF):
-        def header(self):
-            self.set_font('Arial', 'B', 12)
-            self.set_text_color(23, 33, 65)  # 
-#172141
-            self.cell(0, 10, 'Modenhetsvurdering - Gevinstrealisering', 0, 1, 'C')
-            self.ln(5)
-
-        def footer(self):
-            self.set_y(-15)
-            self.set_font('Arial', 'I', 8)
-            self.set_text_color(23, 33, 65)  # 
-#172141
-            self.cell(0, 10, f'Side {self.page_no()}', 0, 0, 'C')
-
-    pdf = PDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-
-    # Titel
-    pdf.set_font('Arial', 'B', 14)
-    pdf.set_text_color(23, 33, 65)  # 
-#172141
-    pdf.cell(0, 10, 'MODENHETSVURDERING - GEVINSTREALISERING', 0, 1, 'C')
-    pdf.ln(5)
-
-    pdf.set_font('Arial', '', 10)
-    pdf.set_text_color(0, 83, 166)  # 
-#0053A6
-    pdf.cell(0, 10, clean_text(f'Rapport generert: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'), 0, 1)
-    pdf.ln(10)
-
-    # Sammendrag
-    stats = calculate_stats()
-    pdf.set_font('Arial', 'B', 12)
-    pdf.set_text_color(23, 33, 65)  # 
-#172141
-    pdf.cell(0, 10, 'SAMMENDRAG', 0, 1)
-    pdf.set_font('Arial', '', 10)
-    pdf.set_text_color(0, 0, 0)
-
-    for phase, stat in stats.items():
-        if stat['count'] > 0:
-            pdf.cell(0, 8, clean_text(f'{phase}: {stat["count"]}/{stat["total"]} fullført - Gjennomsnitt: {stat["average"]:.2f}'), 0, 1)
-
-    pdf.ln(10)
-
-    # Detaljert resultat
-    for phase in phases_data:
-        pdf.set_font('Arial', 'B', 12)
-        pdf.set_text_color(23, 33, 65)  # 
-#172141
-        pdf.cell(0, 10, clean_text(f'FASE: {phase.upper()}'), 0, 1)
-        pdf.set_font('Arial', '', 10)
-        pdf.set_text_color(0, 0, 0)
-
-        for question in phases_data[phase]:
-            response = st.session_state.responses[phase][question['id']]
-            if response['completed'] and response['score'] > 0:
-                # Bruk clean_text for alle tekster
-                status = "[OK]" if response['completed'] else "[X]"
-                pdf.multi_cell(0, 8, clean_text(f'{status} {question["id"]}. {question["title"]} - Score: {response["score"]}'))
-                if response['notes']:
-                    pdf.set_font('Arial', 'I', 8)
-                    pdf.set_text_color(100, 200, 250)  # 
-#64C8FA
-                    pdf.multi_cell(0, 6, clean_text(f'Notater: {response["notes"]}'))
-                    pdf.set_font('Arial', '', 10)
-                    pdf.set_text_color(0, 0, 0)
-                pdf.ln(2)
-
-        pdf.ln(5)
-
-    # Vesentlige forbedringsområder
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 12)
-    pdf.set_text_color(23, 33, 65)  # 
-#172141
-    pdf.cell(0, 10, 'VESENTLIGE FORBEDRINGSOMRÅDER (Score < 3)', 0, 1)
-    pdf.set_font('Arial', '', 10)
-    pdf.set_text_color(0, 0, 0)
-
-    improvement_found = False
-    for phase in phases_data:
-        for question in phases_data[phase]:
-            response = st.session_state.responses[phase][question['id']]
-            if response['completed'] and 0 < response['score'] < 3:
-                pdf.multi_cell(0, 8, clean_text(f'- {phase} - {question["title"]} (Score: {response["score"]})'))
-                improvement_found = True
-
-    if not improvement_found:
-        pdf.cell(0, 8, 'Ingen forbedringsområder identifisert', 0, 1)
-
-    return pdf
-
-def get_pdf_download_link(pdf):
-    """Generer download link for PDF"""
-    try:
-        pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
-    except Exception as e:
-        # Fallback til UTF-8 hvis latin-1 feiler
-        try:
-            pdf_output = pdf.output(dest='S').encode('utf-8', 'replace')
-        except:
-            st.error(f"Kunne ikke generere PDF: {e}")
-            return None
-    b64 = base64.b64encode(pdf_output).decode()
-    href = f'<a href="data:application/octet-stream;base64,{b64}" download="modenhetsvurdering_rapport.pdf">Last ned PDF Rapport</a>'
-    return href
-
-def main():
-    # FARGEKONFIGURASJON MED  MODENHETSKODING
-    st.markdown("""
-        <style>
-        .main-header {
-            font-size: 2.5rem;
-            color: 
-#172141;
-            text-align: center;
-            margin-bottom: 1rem;
-            font-weight: bold;
-        }
-        .phase-header {
-            color: 
-#0053A6;
-            border-bottom: 3px solid 
-#64C8FA;
-            padding-bottom: 0.5rem;
-            margin-top: 1rem;
-            font-weight: 600;
-        }
-        .stProgress > div > div > div > div {
-            background-color: 
-#35DE6D;
-        }
-        .stButton > button {
-            background-color: 
-#0053A6;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 0.5rem 1rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-        .stButton > button:hover {
-            background-color: 
-#172141;
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 83, 166, 0.3);
-        }
-        .success-box {
-            background-color: 
-#DDFAE2;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border-left: 4px solid 
-#35DE6D;
-            margin: 1rem 0;
-        }
-        .info-box {
-            background-color: 
-#C4EFFF;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border-left: 4px solid 
-#64C8FA;
-            margin: 1rem 0;
-        }
-        .warning-box {
-            background-color: rgba(255, 160, 64, 0.1);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border-left: 4px solid 
-#FFA040;
-            margin: 1rem 0;
-        }
-        .critical-box {
-            background-color: rgba(255, 107, 107, 0.1);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border-left: 4px solid 
-#FF6B6B;
-            margin: 1rem 0;
-        }
-        .sidebar .sidebar-content {
-            background-color: 
-#F2FAFD;
-        }
-        .stExpander {
-            border: 1px solid 
-#64C8FA;
-            border-radius: 8px;
-            margin: 0.5rem 0;
-        }
-        .stExpander > div {
-            background-color: 
-#F2FAFD;
-        }
-        h1, h2, h3 {
-            color: 
-#172141;
-        }
-        .score-critical {
-            color: 
-#FF6B6B;
-            font-weight: bold;
-        }
-        .score-medium {
-            color: 
-#FFA040;
-            font-weight: bold;
-        }
-        .score-good {
-            color: 
-#64C8FA;
-            font-weight: bold;
-        }
-        .score-high {
-            color: 
-#35DE6D;
-            font-weight: bold;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<h1 class="main-header">Modenhetsvurdering - Gevinstrealisering</h1>', unsafe_allow_html=True)
-    st.markdown("**Interaktiv vurdering av modenhet i gevinstrealisering gjennom fire faser**")
-    st.markdown("---")
-
-    # Initialiser session state
-    initialize_session_state()
-
-    # Sidebar for navigasjon og oversikt
-    with st.sidebar:
-        st.markdown('<h2 style="color: 
-#172141;">Oversikt</h2>', unsafe_allow_html=True)
-
-        selected_phase = st.selectbox(
-            "Velg fase:",
-            options=list(phases_data.keys()),
-            key="phase_selector"
+def create_bar_chart(phase_data, title="Score per fase"):
+    """Søylediagram for faser"""
+    if not phase_data:
+        return None
+    
+    categories = list(phase_data.keys())
+    values = [phase_data[c]['avg'] for c in categories]
+    colors = [get_score_color(v) for v in values]
+    
+    fig = go.Figure(data=[
+        go.Bar(
+            x=categories,
+            y=values,
+            marker_color=colors,
+            text=[f'{v:.2f}' for v in values],
+            textposition='outside'
         )
+    ])
+    
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=16, color='#172141')),
+        xaxis_title="",
+        yaxis_title="Score",
+        yaxis=dict(range=[0, 5.5], gridcolor='#e0e0e0'),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        height=400
+    )
+    
+    return fig
 
-        # Fremdriftsvisning
-        stats = calculate_stats()
-        if selected_phase in stats:
-            phase_stats = stats[selected_phase]
-            progress = phase_stats['count'] / phase_stats['total'] if phase_stats['total'] > 0 else 0
+def create_heatmap(stats):
+    """Heatmap over alle spørsmål og faser"""
+    if not stats or not stats.get('questions'):
+        return None
+    
+    phases = list(phases_data.keys())
+    max_questions = max(len(phases_data[p]) for p in phases)
+    
+    z_data = []
+    y_labels = []
+    
+    for q_num in range(1, max_questions + 1):
+        row = []
+        for phase in phases:
+            if phase in stats['questions'] and q_num in stats['questions'][phase]:
+                row.append(stats['questions'][phase][q_num]['avg'])
+            else:
+                row.append(None)
+        z_data.append(row)
+        y_labels.append(f"Sp. {q_num}")
+    
+    fig = go.Figure(data=go.Heatmap(
+        z=z_data,
+        x=phases,
+        y=y_labels,
+        colorscale=[
+            [0, '#FF6B6B'],
+            [0.25, '#FFA040'],
+            [0.5, '#FFD93D'],
+            [0.75, '#64C8FA'],
+            [1, '#35DE6D']
+        ],
+        zmin=1,
+        zmax=5,
+        colorbar=dict(title='Score', tickvals=[1, 2, 3, 4, 5]),
+        hoverongaps=False
+    ))
+    
+    fig.update_layout(
+        title=dict(text='Modenhetsoversikt - Alle spørsmål', font=dict(size=16, color='#172141')),
+        xaxis_title="Fase",
+        yaxis_title="Spørsmål",
+        height=600,
+        paper_bgcolor='white'
+    )
+    
+    return fig
 
-            st.subheader("Fremdrift")
-            st.progress(progress)
-            st.write(f"**{phase_stats['count']}/{phase_stats['total']}** spørsmål fullført")
-
-            if phase_stats['count'] > 0:
-                avg_score = phase_stats['average']
-                if avg_score >= 4:
-                    score_class = "score-good"
-                elif avg_score >= 3:
-                    score_class = "score-medium"
-                else:
-                    score_class = "score-critical"
-                st.write(f"Gjennomsnittsscore: **<span class='{score_class}'>{avg_score:.2f}</span>**", unsafe_allow_html=True)
-
-        st.markdown("---")
-        st.subheader("Hurtigstatistikk")
-        for phase, stat in stats.items():
-            if stat['count'] > 0:
-                if stat['average'] >= 4:
-                    score_class = "score-good"
-                elif stat['average'] >= 3:
-                    score_class = "score-medium"
-                else:
-                    score_class = "score-critical"
-                st.write(f"**{phase}:** <span class='{score_class}'>{stat['average']:.2f}</span>", unsafe_allow_html=True)
-
-    # Hovedinnhold - spørsmålsvisning
-    st.markdown(f'<h2 class="phase-header">{selected_phase.upper()}</h2>', unsafe_allow_html=True)
-
-    # Vis fasebeskrivelse
-    phase_descriptions = {
-        "Planlegging": "Fase for strategisk planlegging og forberedelse av gevinstrealisering",
-        "Gjennomføring": "Implementeringsfase med kontinuerlig justering og oppfølging", 
-        "Realisering": "Fase for faktisk gevinstuttak og verdiskapning",
-        "Realisert": "Evaluering og læring fra fullførte gevinstrealiseringer"
-    }
-
-    st.markdown(f'<div class="info-box">{phase_descriptions.get(selected_phase, "")}</div>', unsafe_allow_html=True)
-
-    # Alle spørsmål i expandere
-    for question in phases_data[selected_phase]:
-        response = st.session_state.responses[selected_phase][question['id']]
-
-        expander_label = f"{question['id']}. {question['title']} - "
-        if response['completed']:
-            score = response['score']
-            if score == 5:
-                score_class = "score-high"
-                score_text = "Høy modenhet"
-            elif score == 4:
-                score_class = "score-good"
-                score_text = "God modenhet"
-            elif score == 3:
-                score_class = "score-medium"
-                score_text = "Moderat modenhet"
-            elif score == 2:
-                score_class = "score-critical"
-                score_text = "Begrenset modenhet"
-            else:  # score == 1
-                score_class = "score-critical"
-                score_text = "Lav modenhet"
-            expander_label += f"<span class='{score_class}'>{score} ({score_text})</span>"
+# ============================================================================
+# HOVEDAPPLIKASJON
+# ============================================================================
+def main():
+    data = get_data()
+    
+    # Header
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        try:
+            st.image("bane_nor_logo.png.jpg", width=180)
+        except:
+            st.markdown("### 🚂 Bane NOR")
+    
+    st.markdown('<h1 class="main-header">Modenhetsvurdering</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Gevinstrealisering | Systematisk vurdering med automatisk lagring</p>', unsafe_allow_html=True)
+    
+    # Hovednavigasjon
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📁 Prosjekter",
+        "🎤 Intervju", 
+        "📊 Resultater",
+        "📋 Rapport"
+    ])
+    
+    # ==========================================================================
+    # TAB 1: PROSJEKTER
+    # ==========================================================================
+    with tab1:
+        st.markdown("## Prosjektoversikt")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col2:
+            st.markdown("### ➕ Nytt prosjekt")
+            with st.form("new_project"):
+                project_name = st.text_input("Prosjektnavn", placeholder="F.eks. ERTMS Østlandet")
+                project_desc = st.text_area("Beskrivelse", placeholder="Kort beskrivelse...", height=80)
+                
+                if st.form_submit_button("Opprett prosjekt", use_container_width=True):
+                    if project_name:
+                        project_id = datetime.now().strftime("%Y%m%d%H%M%S")
+                        data['projects'][project_id] = {
+                            'name': project_name,
+                            'description': project_desc,
+                            'created': datetime.now().isoformat(),
+                            'interviews': {}
+                        }
+                        persist_data()
+                        st.success(f"✅ Prosjekt '{project_name}' opprettet!")
+                        st.rerun()
+                    else:
+                        st.error("Skriv inn et prosjektnavn")
+        
+        with col1:
+            st.markdown("### Mine prosjekter")
+            
+            if not data['projects']:
+                st.markdown('<div class="info-box">Ingen prosjekter ennå. Opprett et nytt prosjekt for å starte →</div>', unsafe_allow_html=True)
+            else:
+                for proj_id, project in data['projects'].items():
+                    num_interviews = len(project.get('interviews', {}))
+                    stats = calculate_project_stats(project)
+                    avg_score = stats['overall_avg'] if stats else 0
+                    
+                    with st.expander(f"📁 {project['name']} ({num_interviews} intervjuer)", expanded=False):
+                        col_a, col_b = st.columns([3, 1])
+                        
+                        with col_a:
+                            st.write(f"**Beskrivelse:** {project.get('description', 'Ingen')}")
+                            st.write(f"**Opprettet:** {project['created'][:10]}")
+                            
+                            if num_interviews > 0 and avg_score > 0:
+                                st.write(f"**Gjennomsnittlig modenhet:** {avg_score:.2f} ({get_score_text(avg_score)})")
+                                
+                                st.write("**Intervjuer:**")
+                                for int_id, interview in project['interviews'].items():
+                                    info = interview.get('info', {})
+                                    st.write(f"• {info.get('interviewee', 'Ukjent')} ({info.get('role', '-')}) - {info.get('date', '')}")
+                        
+                        with col_b:
+                            if st.button("🗑️ Slett", key=f"del_{proj_id}"):
+                                del data['projects'][proj_id]
+                                persist_data()
+                                st.rerun()
+    
+    # ==========================================================================
+    # TAB 2: INTERVJU
+    # ==========================================================================
+    with tab2:
+        st.markdown("## Gjennomfør intervju")
+        
+        if not data['projects']:
+            st.warning("⚠️ Opprett et prosjekt først under 'Prosjekter'-fanen")
         else:
-            expander_label += "Ikke vurdert"
-
-        with st.expander(expander_label, expanded=False):
-            # Bruk "Spørsmål:" i stedet for å gjenta nummeret
-            st.write(f"**Spørsmål:** {question['question']}")
-
-            # Modenhetsskala - viser kun nivåene i standard sort farge
-            st.subheader("Modenhetsskala:")
-            for level in question['scale']:
-                st.write(level)
-
-            # Score input med forklaring i radioknappene
-            current_score = response['score']
-            st.subheader("Vurdering:")
-            new_score = st.radio(
-                "Modenhetsnivå:",
-                options=[1, 2, 3, 4, 5],
-                index=current_score-1 if current_score > 0 else 0,
-                key=f"score_{selected_phase}_{question['id']}",
-                horizontal=True,
-                format_func=lambda x: {
-                    1: "Nivå 1 - Lav modenhet",
-                    2: "Nivå 2 - Begrenset modenhet", 
-                    3: "Nivå 3 - Moderat modenhet",
-                    4: "Nivå 4 - God modenhet",
-                    5: "Nivå 5 - Høy modenhet"
-                }[x]
-            )
-
-            # Notater
-            current_notes = response['notes']
-            new_notes = st.text_area(
-                "Notater og kommentarer:",
-                value=current_notes,
-                key=f"notes_{selected_phase}_{question['id']}",
-                placeholder="Observasjoner, begrunnelse for score, eller forbedringsforslag her...",
-                height=100
-            )
-
-            # Lagre knapp
-            col1, col2, col3 = st.columns([1, 2, 1])
+            project_options = {p['name']: pid for pid, p in data['projects'].items()}
+            selected_project_name = st.selectbox("Velg prosjekt", options=list(project_options.keys()))
+            selected_project_id = project_options[selected_project_name]
+            project = data['projects'][selected_project_id]
+            
+            st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 🆕 Start nytt intervju")
+                with st.form("new_interview"):
+                    interviewer = st.text_input("Intervjuer (deg)", placeholder="Ditt navn")
+                    interviewee = st.text_input("Intervjuobjekt *", placeholder="Navn på personen")
+                    role = st.text_input("Rolle/stilling", placeholder="F.eks. Prosjektleder")
+                    date = st.date_input("Dato", value=datetime.now())
+                    
+                    if st.form_submit_button("▶️ Start intervju", use_container_width=True):
+                        if interviewee:
+                            interview_id = datetime.now().strftime("%Y%m%d%H%M%S")
+                            project['interviews'][interview_id] = {
+                                'info': {
+                                    'interviewer': interviewer,
+                                    'interviewee': interviewee,
+                                    'role': role,
+                                    'date': date.strftime('%Y-%m-%d')
+                                },
+                                'responses': {}
+                            }
+                            persist_data()
+                            st.session_state['active_interview'] = {
+                                'project_id': selected_project_id,
+                                'interview_id': interview_id
+                            }
+                            st.success(f"✅ Intervju med {interviewee} startet!")
+                            st.rerun()
+                        else:
+                            st.error("Skriv inn navn på intervjuobjekt")
+            
             with col2:
-                if st.button("Lagre svar", key=f"save_{selected_phase}_{question['id']}", use_container_width=True):
-                    st.session_state.responses[selected_phase][question['id']] = {
-                        'score': new_score,
-                        'notes': new_notes,
-                        'completed': True
+                st.markdown("### 📝 Fortsett eksisterende")
+                if project['interviews']:
+                    interview_options = {
+                        f"{i['info']['interviewee']} ({i['info']['date']})": iid 
+                        for iid, i in project['interviews'].items()
                     }
-                    st.success("Svar lagret!")
-                    st.rerun()
-
-    # Resultatseksjon
-    st.markdown("---")
-    st.markdown('<h2 style="color: 
-#172141;">Resultatoversikt</h2>', unsafe_allow_html=True)
-
-    if st.button("Generer Full Rapport", type="primary", use_container_width=True):
-        stats = calculate_stats()
-
-        # Visuelle visualiseringer
-        col1, col2 = st.columns(2)
-
-        with col1:
-            # Søylediagram
-            if any(stats[phase]['count'] > 0 for phase in stats):
-                phases_with_data = [phase for phase in stats if stats[phase]['count'] > 0]
-                averages = [stats[phase]['average'] for phase in phases_with_data]
-
-                fig_bar = px.bar(
-                    x=phases_with_data,
-                    y=averages,
-                    title="Gjennomsnittsscore per Fase",
-                    labels={'x': 'Fase', 'y': 'Gjennomsnittsscore'},
-                    color=averages,
-                    color_continuous_scale=['
-#FF6B6B', '
-#FFA040', '
-#64C8FA', '
-#35DE6D']
-                )
-                fig_bar.update_layout(
-                    yaxis_range=[0, 5.5],
-                    plot_bgcolor='
-#F2FAFD',
-                    paper_bgcolor='
-#F2FAFD'
-                )
-                st.plotly_chart(fig_bar, use_container_width=True)
-
-        with col2:
-            # Radardiagram (kun hvis minst 3 faser har data)
-            phases_with_data = [phase for phase in stats if stats[phase]['count'] > 0]
-            if len(phases_with_data) >= 3:
-                radar_fig = generate_radar_chart(stats)
-                st.plotly_chart(radar_fig, use_container_width=True)
-            else:
-                st.info("Trenger data fra minst 3 faser for radardiagram")
-
-        # Detaljerte radardiagrammer per fase
-        st.subheader("Detaljert Modenhet per Fase")
-        for phase in phases_data:
-            phase_questions = phases_data[phase]
-            phase_responses = st.session_state.responses[phase]
-
-            # Sjekk om det er noen fullførte spørsmål i fasen
-            if any(phase_responses[q['id']]['completed'] for q in phase_questions):
-                st.write(f"**{phase}**")
-                radar_fig = generate_phase_radar_chart(phase, phase_questions, phase_responses)
-                if radar_fig:
-                    st.plotly_chart(radar_fig, use_container_width=True)
+                    selected_interview = st.selectbox("Velg intervju", options=list(interview_options.keys()))
+                    
+                    if st.button("Fortsett dette intervjuet", use_container_width=True):
+                        st.session_state['active_interview'] = {
+                            'project_id': selected_project_id,
+                            'interview_id': interview_options[selected_interview]
+                        }
+                        st.rerun()
                 else:
-                    st.info(f"Ingen data tilgjengelig for detaljert analyse av {phase}")
-
-        # Detaljert rapport
-        st.subheader("Detaljert Rapport")
-
-        # Last ned knapper for forskjellige formater
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            # TXT rapport
-            report_text = generate_report()
-            st.download_button(
-                label="Last ned rapport som TXT",
-                data=report_text,
-                file_name=f"modenhetsvurdering_rapport_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
-
-        with col2:
-            # PDF rapport
-            try:
-                pdf = create_pdf_report()
-                if pdf:
-                    pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
-                    st.download_button(
-                        label="Last ned rapport som PDF",
-                        data=pdf_output,
-                        file_name=f"modenhetsvurdering_rapport_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-            except Exception as e:
-                st.error(f"Kunne ikke generere PDF: {e}")
-
-        with col3:
-            # CSV data
-            csv_data = []
-            csv_data.append(["Fase", "Spørsmål ID", "Tittel", "Score", "Notater", "Fullført"])
-            for phase in phases_data:
-                for question in phases_data[phase]:
-                    response = st.session_state.responses[phase][question['id']]
-                    csv_data.append([
-                        phase,
-                        question['id'],
-                        question['title'],
-                        response['score'] if response['completed'] else "Ikke vurdert",
-                        response['notes'],
-                        "Ja" if response['completed'] else "Nei"
-                    ])
-
-            df = pd.DataFrame(csv_data[1:], columns=csv_data[0])
-            csv_string = df.to_csv(index=False, sep=';')
-            st.download_button(
-                label="Last ned data som CSV",
-                data=csv_string,
-                file_name=f"modenhetsvurdering_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-
-        # Forbedringsområder
-        st.subheader("Forbedringsområder")
-        improvement_found = False
-
-        for phase in phases_data:
-            low_scores = []
-            for question in phases_data[phase]:
-                response = st.session_state.responses[phase][question['id']]
-                if response['completed'] and 0 < response['score'] < 3:
-                    low_scores.append((question, response['score']))
-                    improvement_found = True
-
-            if low_scores:
-                st.write(f"**{phase}:**")
-                for question, score in low_scores:
-                    score_class = "score-critical"
-                    st.write(f"- <span class='{score_class}'>{question['title']} (Score: {score} - Lav/Begrenset modenhet)</span>", unsafe_allow_html=True)
-
-        if not improvement_found:
-            st.markdown('<div class="success-box">Ingen vesentlige forbedringsområder identifisert! Organisasjonen jobber aktivt med gevinstrealisering.</div>', unsafe_allow_html=True)
-
-        # Anbefalinger basert på resultater
-        st.subheader("Anbefalinger")
-
-        total_questions = sum(len(phases_data[phase]) for phase in phases_data)
-        completed_questions = sum(stats[phase]['count'] for phase in stats)
-
-        if completed_questions == 0:
-            st.info("Start med å svare på spørsmålene i fasene ovenfor for å få tilpassede anbefalinger")
-        elif completed_questions < total_questions * 0.5:
-            st.warning("Fortsett å fylle ut vurderingen for mer presise anbefalinger")
+                    st.info("Ingen intervjuer i dette prosjektet ennå")
+            
+            # Aktivt intervju
+            if 'active_interview' in st.session_state:
+                active = st.session_state['active_interview']
+                
+                if active['project_id'] in data['projects']:
+                    project = data['projects'][active['project_id']]
+                    if active['interview_id'] in project['interviews']:
+                        interview = project['interviews'][active['interview_id']]
+                        
+                        st.markdown("---")
+                        st.markdown(f"### 🎤 Intervju: **{interview['info']['interviewee']}** ({interview['info']['role']})")
+                        
+                        # Fremdrift
+                        total_q = sum(len(phases_data[p]) for p in phases_data)
+                        answered_q = sum(
+                            1 for phase in interview.get('responses', {}).values() 
+                            for resp in phase.values() 
+                            if resp.get('score', 0) > 0
+                        )
+                        
+                        st.progress(answered_q / total_q)
+                        st.caption(f"Besvart: {answered_q} av {total_q} spørsmål ({answered_q/total_q*100:.0f}%)")
+                        
+                        # Faser
+                        phase_tabs = st.tabs(list(phases_data.keys()))
+                        
+                        for phase_tab, phase_name in zip(phase_tabs, phases_data.keys()):
+                            with phase_tab:
+                                if phase_name not in interview['responses']:
+                                    interview['responses'][phase_name] = {}
+                                
+                                # Vis antall besvart i denne fasen
+                                phase_answered = sum(1 for resp in interview['responses'][phase_name].values() if resp.get('score', 0) > 0)
+                                st.caption(f"📊 {phase_answered} av {len(phases_data[phase_name])} besvart i denne fasen")
+                                
+                                for q in phases_data[phase_name]:
+                                    q_id = str(q['id'])
+                                    
+                                    if q_id not in interview['responses'][phase_name]:
+                                        interview['responses'][phase_name][q_id] = {'score': 0, 'notes': ''}
+                                    
+                                    resp = interview['responses'][phase_name][q_id]
+                                    status = "✅" if resp['score'] > 0 else "⬜"
+                                    score_display = f" → Nivå {resp['score']}" if resp['score'] > 0 else ""
+                                    
+                                    with st.expander(f"{status} {q['id']}. {q['title']}{score_display}"):
+                                        st.markdown(f"**{q['question']}**")
+                                        
+                                        st.markdown("**Modenhetsskala:**")
+                                        for level in q['scale']:
+                                            st.write(f"- {level}")
+                                        
+                                        st.markdown("---")
+                                        
+                                        new_score = st.radio(
+                                            "Velg nivå:",
+                                            options=[0, 1, 2, 3, 4, 5],
+                                            index=resp['score'],
+                                            key=f"s_{phase_name}_{q_id}",
+                                            horizontal=True,
+                                            format_func=lambda x: "Ikke vurdert" if x == 0 else f"Nivå {x}"
+                                        )
+                                        
+                                        new_notes = st.text_area(
+                                            "Notater:",
+                                            value=resp['notes'],
+                                            key=f"n_{phase_name}_{q_id}",
+                                            placeholder="Begrunnelse, sitater, observasjoner...",
+                                            height=80
+                                        )
+                                        
+                                        if st.button("💾 Lagre", key=f"save_{phase_name}_{q_id}"):
+                                            interview['responses'][phase_name][q_id] = {
+                                                'score': new_score,
+                                                'notes': new_notes
+                                            }
+                                            persist_data()
+                                            st.success("Lagret!")
+                                            st.rerun()
+                        
+                        # Avslutt intervju
+                        st.markdown("---")
+                        col1, col2, col3 = st.columns([1, 1, 1])
+                        with col2:
+                            if st.button("✅ Avslutt intervju", use_container_width=True):
+                                del st.session_state['active_interview']
+                                st.success("Intervju avsluttet og lagret!")
+                                st.rerun()
+    
+    # ==========================================================================
+    # TAB 3: RESULTATER
+    # ==========================================================================
+    with tab3:
+        st.markdown("## Resultater og analyse")
+        
+        if not data['projects']:
+            st.warning("Ingen prosjekter å vise")
         else:
-            overall_avg = np.mean([stats[phase]['average'] for phase in stats if stats[phase]['count'] > 0])
-            if overall_avg == 5:
-                st.success("Utmerket modenhet! Høy modenhet på alle områder.")
-            elif overall_avg >= 4:
-                st.success("God modenhet! Fokus på å opprettholde og dokumentere beste praksis.")
-            elif overall_avg >= 3:
-                st.info("Moderat modenhet! Arbeid med å styrke svakere områder for å oppnå høyere modenhet.")
+            project_options = {p['name']: pid for pid, p in data['projects'].items()}
+            selected_project_name = st.selectbox("Velg prosjekt", options=list(project_options.keys()), key="results_proj")
+            selected_project_id = project_options[selected_project_name]
+            project = data['projects'][selected_project_id]
+            
+            stats = calculate_project_stats(project)
+            
+            if not stats or stats['total_interviews'] == 0:
+                st.info("Ingen intervjuer gjennomført for dette prosjektet ennå")
             else:
-                st.markdown('<div class="critical-box">Lav/Begrenset modenhet. Fokuser på de identifiserte forbedringsområdene.</div>', unsafe_allow_html=True)
+                # Nøkkeltall
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-label">Intervjuer</div>
+                            <div class="metric-value">{stats['total_interviews']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    color = get_score_color(stats['overall_avg'])
+                    st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-label">Gjennomsnitt</div>
+                            <div class="metric-value" style="color: {color}">{stats['overall_avg']:.2f}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                
+                with col3:
+                    if stats['phases']:
+                        min_phase = min(stats['phases'].items(), key=lambda x: x[1]['avg'])
+                        st.markdown(f"""
+                            <div class="metric-card">
+                                <div class="metric-label">Svakeste fase</div>
+                                <div style="font-size: 0.9rem; font-weight: 600;">{min_phase[0][:15]}</div>
+                                <div style="color: {get_score_color(min_phase[1]['avg'])}">{min_phase[1]['avg']:.2f}</div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                
+                with col4:
+                    st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-label">Forbedringsområder</div>
+                            <div class="metric-value" style="color: #FFA040">{len(stats['improvement_areas'])}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                
+                st.markdown("---")
+                
+                # Overordnede visualiseringer
+                st.markdown("### 📈 Overordnet modenhet")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if stats['phases'] and len(stats['phases']) >= 3:
+                        radar = create_phase_radar_chart(stats['phases'], "Modenhet per fase")
+                        if radar:
+                            st.plotly_chart(radar, use_container_width=True)
+                    else:
+                        st.info("Trenger data fra minst 3 faser for radardiagram")
+                
+                with col2:
+                    bar = create_bar_chart(stats['phases'], "Gjennomsnittsscore per fase")
+                    if bar:
+                        st.plotly_chart(bar, use_container_width=True)
+                
+                # Heatmap
+                st.markdown("### 🗺️ Heatmap - Alle spørsmål")
+                heatmap = create_heatmap(stats)
+                if heatmap:
+                    st.plotly_chart(heatmap, use_container_width=True)
+                
+                # Detaljerte radardiagrammer per fase
+                st.markdown("---")
+                st.markdown("### 🔍 Detaljert analyse per fase")
+                
+                for phase_name in phases_data.keys():
+                    if phase_name in stats['questions'] and stats['questions'][phase_name]:
+                        with st.expander(f"📊 {phase_name} - Detaljert radardiagram", expanded=False):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                detailed_radar = create_detailed_phase_radar(stats['questions'][phase_name], phase_name)
+                                if detailed_radar:
+                                    st.plotly_chart(detailed_radar, use_container_width=True)
+                            
+                            with col2:
+                                # Sammenligning av intervjuer
+                                comparison = create_interview_comparison_radar(project, phase_name)
+                                if comparison:
+                                    st.plotly_chart(comparison, use_container_width=True)
+                                else:
+                                    st.info("Trenger 2+ intervjuer for sammenligning")
+                            
+                            # Tabell
+                            st.markdown("**Detaljerte scores:**")
+                            table_data = []
+                            for q_id, q_data in sorted(stats['questions'][phase_name].items()):
+                                table_data.append({
+                                    'Nr': q_id,
+                                    'Spørsmål': q_data['title'],
+                                    'Gjennomsnitt': f"{q_data['avg']:.2f}",
+                                    'Min': q_data['min'],
+                                    'Maks': q_data['max'],
+                                    'Svar': q_data['count']
+                                })
+                            st.dataframe(pd.DataFrame(table_data), use_container_width=True, hide_index=True)
+                
+                # Forbedringsområder
+                st.markdown("---")
+                st.markdown("### 🎯 Forbedringsområder (score < 3)")
+                
+                if not stats['improvement_areas']:
+                    st.markdown('<div class="success-box">✅ Ingen kritiske forbedringsområder identifisert!</div>', unsafe_allow_html=True)
+                else:
+                    for area in stats['improvement_areas'][:15]:
+                        box_class = "critical-box" if area['score'] < 2 else "warning-box"
+                        st.markdown(f"""
+                            <div class="{box_class}">
+                                <strong>{area['phase']}</strong> - Sp. {area['question_id']}: {area['question']}<br>
+                                Score: <strong>{area['score']:.2f}</strong> ({get_score_text(area['score'])})
+                            </div>
+                        """, unsafe_allow_html=True)
+    
+    # ==========================================================================
+    # TAB 4: RAPPORT
+    # ==========================================================================
+    with tab4:
+        st.markdown("## Generer rapport")
+        
+        if not data['projects']:
+            st.warning("Ingen prosjekter å generere rapport for")
+        else:
+            project_options = {p['name']: pid for pid, p in data['projects'].items()}
+            selected_project_name = st.selectbox("Velg prosjekt", options=list(project_options.keys()), key="report_proj")
+            selected_project_id = project_options[selected_project_name]
+            project = data['projects'][selected_project_id]
+            
+            stats = calculate_project_stats(project)
+            
+            if not stats or stats['total_interviews'] == 0:
+                st.info("Gjennomfør minst ett intervju for å generere rapport")
+            else:
+                st.markdown("### Rapportinnstillinger")
+                
+                include_details = st.checkbox("Inkluder detaljerte spørsmålssvar", value=True)
+                include_notes = st.checkbox("Inkluder notater fra intervjuer", value=True)
+                
+                if st.button("📄 Generer rapport", use_container_width=True):
+                    report = []
+                    report.append("=" * 70)
+                    report.append("MODENHETSVURDERING - GEVINSTREALISERING")
+                    report.append("Bane NOR - Konsern Controlling")
+                    report.append("=" * 70)
+                    report.append("")
+                    report.append(f"Prosjekt: {project['name']}")
+                    report.append(f"Beskrivelse: {project.get('description', '-')}")
+                    report.append(f"Rapport generert: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+                    report.append(f"Antall intervjuer: {stats['total_interviews']}")
+                    report.append("")
+                    
+                    report.append("-" * 70)
+                    report.append("SAMMENDRAG")
+                    report.append("-" * 70)
+                    report.append(f"Samlet modenhetsnivå: {stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})")
+                    report.append("")
+                    
+                    report.append("Modenhet per fase:")
+                    for phase, phase_stat in stats['phases'].items():
+                        report.append(f"  {phase}: {phase_stat['avg']:.2f} (min: {phase_stat['min']:.1f}, maks: {phase_stat['max']:.1f})")
+                    report.append("")
+                    
+                    report.append("-" * 70)
+                    report.append("FORBEDRINGSOMRÅDER (Score < 3)")
+                    report.append("-" * 70)
+                    if stats['improvement_areas']:
+                        for area in stats['improvement_areas']:
+                            report.append(f"  [{area['phase]}] Sp. {area['question_id']}: {area['question']}")
+                            report.append(f"    Score: {area['score']:.2f}")
+                    else:
+                        report.append("  Ingen kritiske forbedringsområder identifisert.")
+                    report.append("")
+                    
+                    if include_details:
+                        report.append("-" * 70)
+                        report.append("DETALJERTE RESULTATER PER FASE")
+                        report.append("-" * 70)
+                        
+                        for phase in phases_data:
+                            if phase in stats['questions']:
+                                report.append(f"\n{phase.upper()}")
+                                report.append("-" * 40)
+                                for q_id, q_data in sorted(stats['questions'][phase].items()):
+                                    report.append(f"  {q_id}. {q_data['title']}")
+                                    report.append(f"     Gjennomsnitt: {q_data['avg']:.2f} | Min: {q_data['min']} | Maks: {q_data['max']} | Svar: {q_data['count']}")
+                    
+                    if include_notes:
+                        report.append("")
+                        report.append("-" * 70)
+                        report.append("INTERVJUNOTATER")
+                        report.append("-" * 70)
+                        
+                        for int_id, interview in project['interviews'].items():
+                            info = interview['info']
+                            report.append(f"\n{info['interviewee']} ({info['role']}) - {info['date']}")
+                            report.append("-" * 40)
+                            
+                            has_notes = False
+                            for phase, questions in interview.get('responses', {}).items():
+                                for q_id, resp in questions.items():
+                                    if resp.get('notes'):
+                                        has_notes = True
+                                        q_title = ""
+                                        for q in phases_data.get(phase, []):
+                                            if str(q['id']) == q_id:
+                                                q_title = q['title']
+                                                break
+                                        report.append(f"  [{phase}] {q_id}. {q_title}")
+                                        report.append(f"  Score: {resp['score']} | Notat: {resp['notes']}")
+                                        report.append("")
+                            
+                            if not has_notes:
+                                report.append("  (Ingen notater)")
+                    
+                    report.append("")
+                    report.append("=" * 70)
+                    report.append("SLUTT PÅ RAPPORT")
+                    report.append("=" * 70)
+                    
+                    report_text = "\n".join(report)
+                    
+                    st.text_area("Rapport", value=report_text, height=400)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.download_button(
+                            "📥 Last ned rapport (.txt)",
+                            data=report_text,
+                            file_name=f"modenhet_{project['name']}_{datetime.now().strftime('%Y%m%d')}.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+                    
+                    with col2:
+                        # CSV eksport
+                        csv_data = []
+                        for phase in stats['questions']:
+                            for q_id, q_data in stats['questions'][phase].items():
+                                csv_data.append({
+                                    'Fase': phase,
+                                    'SpørsmålID': q_id,
+                                    'Tittel': q_data['title'],
+                                    'Gjennomsnitt': round(q_data['avg'], 2),
+                                    'Min': q_data['min'],
+                                    'Maks': q_data['max'],
+                                    'AntallSvar': q_data['count']
+                                })
+                        
+                        csv_df = pd.DataFrame(csv_data)
+                        csv_string = csv_df.to_csv(index=False, sep=';')
+                        
+                        st.download_button(
+                            "📥 Last ned data (.csv)",
+                            data=csv_string,
+                            file_name=f"modenhet_data_{project['name']}_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
 
-    # Informasjon om appen
-    with st.expander("Om denne appen"):
-        st.markdown("""
-        <div class="info-box">
-        **Funksjonalitet:**
-        - Vurder modenhet i gevinstrealisering gjennom 4 faser
-        - Auto-lagring av alle svar
-        - Generer visuelle rapporter og diagrammer
-        - Identifiser forbedringsområder
-        - Eksporter rapporter i TXT, PDF og CSV format
-
-        **Bruk:**
-        1. Velg fase i sidebar
-        2. Gå gjennom hvert spørsmål
-        3. Velg score og skriv notater
-        4. Trykk "Lagre svar" for hvert spørsmål
-        5. Trykk "Generer Full Rapport" for resultater
-
-        **OBS! Data lagres lokalt i nettleseren og forsvinner ved oppdatering.**
-
-        **Modenhetskoding:**
-        - <span style='color: 
-#FF6B6B'>Rød (1-2)</span>: Lav/Begrenset modenhet
-        - <span style='color: 
-#FFA040'>Oransje (3)</span>: Moderat modenhet
-        - <span style='color: 
-#64C8FA'>Blå (4)</span>: God modenhet
-        - <span style='color: 
-#35DE6D'>Grønn (5)</span>: Høy modenhet
-        </div>
-        """, unsafe_allow_html=True)
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: #666; font-size: 0.8rem;">
+        Modenhetsvurdering v3.0 | Bane NOR - Konsern Controlling<br>
+        💾 Alt lagres automatisk | 📊 23 spørsmål per fase | 🎤 Multi-intervju støtte
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
