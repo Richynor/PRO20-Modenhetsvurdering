@@ -2123,6 +2123,5 @@ def main():
         💾 Alt lagres automatisk | 📊 23 spørsmål per fase | 🎤 Multi-intervju støtte
     </div>
     """, unsafe_allow_html=True)
-
 if __name__ == "__main__":
     main()
