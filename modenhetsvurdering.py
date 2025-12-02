@@ -1,6 +1,6 @@
 """
 MODENHETSVURDERING - GEVINSTREALISERING
-Bane NOR - Konsern økonomig
+Bane NOR - Konsern Controlling
 
 Komplett løsning med:
 - Alle 23 spørsmål per fase
@@ -41,7 +41,7 @@ phases_data = {
         {
             "id": 1,
             "title": "Bruk av tidligere læring og gevinstdata",
-            "question": "Hvordan anvendes erfaringer og læring fra tidligere er og gevinstarbeid i planleggingen av nye gevinster?",
+            "question": "Hvordan anvendes erfaringer og læring fra tidligere prosjekter og gevinstarbeid i planleggingen av nye gevinster?",
             "scale": [
                 "Nivå 1: Ingen læring fra tidligere arbeid anvendt.",
                 "Nivå 2: Enkelte erfaringer omtalt, men ikke strukturert brukt.",
@@ -137,7 +137,7 @@ phases_data = {
         {
             "id": 9,
             "title": "Gevinstforutsetninger",
-            "question": "Er alle vesentlige forutsetninger ivaretatt og under arbeid - enten av et, linjen eller eksterne aktører - for å muliggjøre gevinstrealisering?",
+            "question": "Er alle vesentlige forutsetninger ivaretatt og under arbeid - enten av prosjektet, linjen eller eksterne aktører - for å muliggjøre gevinstrealisering?",
             "scale": [
                 "Nivå 1: Ingen kartlegging av gevinstforutsetninger.",
                 "Nivå 2: Noen forutsetninger er identifisert, men ikke systematisk dokumentert.",
@@ -319,7 +319,7 @@ phases_data = {
         {
             "id": 1,
             "title": "Bruk av tidligere læring og gevinstdata",
-            "question": "Hvordan brukes erfaringer og læring fra tidligere er og gevinstarbeid til å justere tiltak under gjennomføringen?",
+            "question": "Hvordan brukes erfaringer og læring fra tidligere prosjekter og gevinstarbeid til å justere tiltak under gjennomføringen?",
             "scale": [
                 "Nivå 1: Ingen læring fra tidligere arbeid anvendt under gjennomføring.",
                 "Nivå 2: Enkelte erfaringer omtalt, men ikke strukturert brukt for justering.",
@@ -597,7 +597,7 @@ phases_data = {
         {
             "id": 1,
             "title": "Bruk av tidligere læring og gevinstdata",
-            "question": "Hvordan anvendes læring fra tidligere er og gevinstarbeid for å optimalisere gevinstuttak under realiseringen?",
+            "question": "Hvordan anvendes læring fra tidligere prosjekter og gevinstarbeid for å optimalisere gevinstuttak under realiseringen?",
             "scale": [
                 "Nivå 1: Ingen læring anvendt i realiseringsfasen.",
                 "Nivå 2: Enkelte erfaringer tas i betraktning.",
@@ -1307,7 +1307,7 @@ def get_score_text(score):
     else: return "Lav modenhet"
 
 def calculate_project_stats(project):
-    """Beregn statistikk for et """
+    """Beregn statistikk for et prosjekt"""
     if not project.get('interviews'):
         return None
     
@@ -1613,27 +1613,27 @@ def main():
     
     # Hovednavigasjon
     tab1, tab2, tab3, tab4 = st.tabs([
-        "📁 er",
+        "📁 Prosjekter",
         "🎤 Intervju", 
         "📊 Resultater",
         "📋 Rapport"
     ])
     
     # ==========================================================================
-    # TAB 1: ER
+    # TAB 1: PROSJEKTER
     # ==========================================================================
     with tab1:
-        st.markdown("## oversikt")
+        st.markdown("## Prosjektoversikt")
         
         col1, col2 = st.columns([2, 1])
         
         with col2:
-            st.markdown("### ➕ Nytt ")
+            st.markdown("### ➕ Nytt prosjekt")
             with st.form("new_project"):
-                project_name = st.text_input("navn", placeholder="F.eks. ERTMS Østlandet")
+                project_name = st.text_input("Prosjektnavn", placeholder="F.eks. ERTMS Østlandet")
                 project_desc = st.text_area("Beskrivelse", placeholder="Kort beskrivelse...", height=80)
                 
-                if st.form_submit_button("Opprett ", use_container_width=True):
+                if st.form_submit_button("Opprett prosjekt", use_container_width=True):
                     if project_name:
                         project_id = datetime.now().strftime("%Y%m%d%H%M%S")
                         data['projects'][project_id] = {
@@ -1643,16 +1643,16 @@ def main():
                             'interviews': {}
                         }
                         persist_data()
-                        st.success(f"✅  '{project_name}' opprettet!")
+                        st.success(f"✅ Prosjekt '{project_name}' opprettet!")
                         st.rerun()
                     else:
-                        st.error("Skriv inn et navn")
+                        st.error("Skriv inn et prosjektnavn")
         
         with col1:
-            st.markdown("### Mine er")
+            st.markdown("### Mine prosjekter")
             
             if not data['projects']:
-                st.markdown('<div class="info-box">Ingen er ennå. Opprett et nytt  for å starte →</div>', unsafe_allow_html=True)
+                st.markdown('<div class="info-box">Ingen prosjekter ennå. Opprett et nytt prosjekt for å starte →</div>', unsafe_allow_html=True)
             else:
                 for proj_id, project in data['projects'].items():
                     num_interviews = len(project.get('interviews', {}))
@@ -1687,10 +1687,10 @@ def main():
         st.markdown("## Gjennomfør intervju")
         
         if not data['projects']:
-            st.warning("⚠️ Opprett et  først under 'er'-fanen")
+            st.warning("⚠️ Opprett et prosjekt først under 'Prosjekter'-fanen")
         else:
             project_options = {p['name']: pid for pid, p in data['projects'].items()}
-            selected_project_name = st.selectbox("Velg ", options=list(project_options.keys()))
+            selected_project_name = st.selectbox("Velg prosjekt", options=list(project_options.keys()))
             selected_project_id = project_options[selected_project_name]
             project = data['projects'][selected_project_id]
             
@@ -1703,7 +1703,7 @@ def main():
                 with st.form("new_interview"):
                     interviewer = st.text_input("Intervjuer (deg)", placeholder="Ditt navn")
                     interviewee = st.text_input("Intervjuobjekt *", placeholder="Navn på personen")
-                    role = st.text_input("Rolle/stilling", placeholder="F.eks. leder")
+                    role = st.text_input("Rolle/stilling", placeholder="F.eks. Prosjektleder")
                     date = st.date_input("Dato", value=datetime.now())
                     
                     if st.form_submit_button("▶️ Start intervju", use_container_width=True):
@@ -1744,7 +1744,7 @@ def main():
                         }
                         st.rerun()
                 else:
-                    st.info("Ingen intervjuer i dette et ennå")
+                    st.info("Ingen intervjuer i dette prosjektet ennå")
             
             # Aktivt intervju
             if 'active_interview' in st.session_state:
@@ -1842,17 +1842,17 @@ def main():
         st.markdown("## Resultater og analyse")
         
         if not data['projects']:
-            st.warning("Ingen er å vise")
+            st.warning("Ingen prosjekter å vise")
         else:
             project_options = {p['name']: pid for pid, p in data['projects'].items()}
-            selected_project_name = st.selectbox("Velg ", options=list(project_options.keys()), key="results_proj")
+            selected_project_name = st.selectbox("Velg prosjekt", options=list(project_options.keys()), key="results_proj")
             selected_project_id = project_options[selected_project_name]
             project = data['projects'][selected_project_id]
             
             stats = calculate_project_stats(project)
             
             if not stats or stats['total_interviews'] == 0:
-                st.info("Ingen intervjuer gjennomført for dette et ennå")
+                st.info("Ingen intervjuer gjennomført for dette prosjektet ennå")
             else:
                 # Nøkkeltall
                 col1, col2, col3, col4 = st.columns(4)
@@ -1977,10 +1977,10 @@ def main():
         st.markdown("## Generer rapport")
         
         if not data['projects']:
-            st.warning("Ingen er å generere rapport for")
+            st.warning("Ingen prosjekter å generere rapport for")
         else:
             project_options = {p['name']: pid for pid, p in data['projects'].items()}
-            selected_project_name = st.selectbox("Velg ", options=list(project_options.keys()), key="report_proj")
+            selected_project_name = st.selectbox("Velg prosjekt", options=list(project_options.keys()), key="report_proj")
             selected_project_id = project_options[selected_project_name]
             project = data['projects'][selected_project_id]
             
@@ -1998,10 +1998,10 @@ def main():
                     report = []
                     report.append("=" * 70)
                     report.append("MODENHETSVURDERING - GEVINSTREALISERING")
-                    report.append("Bane NOR - Konsern økonomig")
+                    report.append("Bane NOR - Konsern Controlling")
                     report.append("=" * 70)
                     report.append("")
-                    report.append(f": {project['name']}")
+                    report.append(f"Prosjekt: {project['name']}")
                     report.append(f"Beskrivelse: {project.get('description', '-')}")
                     report.append(f"Rapport generert: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
                     report.append(f"Antall intervjuer: {stats['total_interviews']}")
@@ -2119,7 +2119,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; font-size: 0.8rem;">
-        Modenhetsvurdering v3.0 | Bane NOR - Konsern økonomig<br>
+        Modenhetsvurdering v3.0 | Bane NOR - Konsern Controlling<br>
         💾 Alt lagres automatisk | 📊 23 spørsmål per fase | 🎤 Multi-intervju støtte
     </div>
     """, unsafe_allow_html=True)
