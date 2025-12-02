@@ -10,6 +10,7 @@ from io import BytesIO
 import sqlite3
 import os
 from pathlib import Path
+import pickle 
 
 # ============================================================================
 # KONFIGURASJON
@@ -23,6 +24,7 @@ st.set_page_config(
 
 # Database path
 DB_PATH = "modenhetsvurdering.db"
+DATA_FILE = "modenhet_data.pkl"
 
 # ============================================================================
 # DATABASE FUNKSJONER
