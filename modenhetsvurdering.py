@@ -2023,8 +2023,8 @@ def main():
                     report.append("-" * 70)
                     if stats['improvement_areas']:
                         for area in stats['improvement_areas']:
-                            report.append(f"  [{area['phase]}] Sp. {area['question_id']}: {area['question']}")
-                            report.append(f"    Score: {area['score']:.2f}"),
+                            report.append(f"  [{area['phase']}] Sp. {area['question_id']}: {area['question']}")
+                            report.append(f"    Score: {area['score']:.2f}")
                     else:
                         report.append("  Ingen kritiske forbedringsområder identifisert.")
                     report.append("")
