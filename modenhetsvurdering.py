@@ -2,7 +2,6 @@
 MODENHETSVURDERING - GEVINSTREALISERING
 Bane NOR - Konsern økonomi og digital transformasjon
 
-Versjon: 4B - PARAMETERBASERT SPØRSMÅLSUTVALG
 Velg 2-4 parametere du vil dekke → viser kun de spørsmålene
 """
 
