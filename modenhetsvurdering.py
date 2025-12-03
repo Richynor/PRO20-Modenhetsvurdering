@@ -512,7 +512,15 @@ def load_data():
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, 'rb') as f:
-                return pickle.load(f)
+                data = pickle.load(f)
+                # Migrer fra gammel struktur ('projects') til ny ('initiatives')
+                if 'projects' in data and 'initiatives' not in data:
+                    data['initiatives'] = data['projects']
+                    del data['projects']
+                # Sikre at 'initiatives' alltid finnes
+                if 'initiatives' not in data:
+                    data['initiatives'] = {}
+                return data
         except:
             pass
     return {'initiatives': {}}
@@ -524,6 +532,9 @@ def save_data(data):
 def get_data():
     if 'app_data' not in st.session_state:
         st.session_state.app_data = load_data()
+    # Sikre at strukturen er korrekt
+    if 'initiatives' not in st.session_state.app_data:
+        st.session_state.app_data['initiatives'] = {}
     return st.session_state.app_data
 
 def persist_data():
