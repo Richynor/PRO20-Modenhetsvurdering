@@ -1,7 +1,6 @@
 """
 MODENHETSVURDERING - GEVINSTREALISERING
 Bane NOR - Konsern økonomi og digital transformasjon
-
 """
 
 import streamlit as st
@@ -12,9 +11,9 @@ import numpy as np
 from datetime import datetime
 import pickle
 import os
-import subprocess
 import tempfile
 import base64
+from io import BytesIO
 
 # ============================================================================
 # KONFIGURASJON
@@ -32,12 +31,12 @@ DATA_FILE = "modenhet_data.pkl"
 # BANE NOR FARGEPALETT
 # ============================================================================
 COLORS = {
-    'primary_dark': '#172141',      # Mørk blå
-    'primary': '#0053A6',           # Hovedblå
-    'primary_light': '#64C8FA',     # Lys blå
-    'success': '#35DE6D',           # Grønn
-    'warning': '#FFA040',           # Oransje
-    'danger': '#FF6B6B',            # Rød
+    'primary_dark': '#172141',
+    'primary': '#0053A6',
+    'primary_light': '#64C8FA',
+    'success': '#35DE6D',
+    'warning': '#FFA040',
+    'danger': '#FF6B6B',
     'white': '#FFFFFF',
     'black': '#000000',
     'gray_light': '#F2FAFD',
@@ -49,7 +48,7 @@ COLORS = {
 # ============================================================================
 HENSIKT_TEKST = """
 ### Hensikt
-Modenhetsvurderingen har som formål å synliggjøre gode erfaringer og identifisere forbedringsområder i vårt arbeid med gevinster. Vi ønsker å lære av hverandre, dele beste praksis og hjelpe initiativer til å lykkes bedre med å skape og realisere gevinster. Gjennom denne tilnærmingen bygger vi en kultur for kontinuerlig læring og forbedring, der vi blir stadig dyktigere til å hente ut effekter og synliggjøre den verdiskapningen vi bidrar med.
+Modenhetsvurderingen har som formål å synliggjøre gode erfaringer og identifisere forbedringsområder i vårt arbeid med gevinster. Vi ønsker å lære av hverandre, dele beste praksis og hjelpe initiativer til å lykkes bedre med å skape og realisere gevinster.
 
 Et sentralt fokusområde er å sikre at gevinstene vi arbeider med er konkrete og realitetsorienterte. Dette innebærer at nullpunkter og estimater er testet og validert, at hypoteser er prøvd mot representative caser og faktiske arbeidsforhold, og at forutsetningene for gevinstuttak er realistiske og forankret.
 
@@ -57,14 +56,14 @@ Et sentralt fokusområde er å sikre at gevinstene vi arbeider med er konkrete o
 Vi ønsker å intervjue alle som har vært eller er involvert i gevinstarbeidet – enten du har bidratt til utarbeidelse av business case, gevinstkart, gevinstrealiseringsplaner eller målinger, eller du har hatt ansvar for oppfølging og realisering.
 
 ### Hva vurderes?
-Intervjuene dekker hele gevinstlivssyklusen – fra planlegging og gjennomføring til realisering og evaluering. Vi ser på elementer som strategisk retning, gevinstkart, nullpunkter og estimater, hypotesetesting, interessentengasjement, eierskap og ansvar, kommunikasjon, risikohåndtering og læring.
+Intervjuene dekker hele gevinstlivssyklusen – fra planlegging og gjennomføring til realisering og evaluering.
 
 ### Gevinster i endringsinitiativ
 Et endringsinitiativ kan ha flere konkrete gevinster. Intervjuene kan gjennomføres med fokus på én spesifikk gevinst, eller for initiativet som helhet.
 """
 
 # ============================================================================
-# ROLLEDEFINISJONER - UTVIDET MED FLERE SPØRSMÅL
+# ROLLEDEFINISJONER
 # ============================================================================
 ROLES = {
     "Prosjektleder / Programleder": {
@@ -83,6 +82,15 @@ ROLES = {
             "Gjennomføring": [2, 6, 9, 10, 11, 12, 13, 16, 17, 20, 21],
             "Realisering": [1, 2, 3, 6, 8, 9, 10, 11, 12, 13, 16, 17, 20, 21],
             "Realisert": [1, 2, 6, 8, 11, 12, 13, 16, 17, 20, 21]
+        }
+    },
+    "Gevinstansvarlig": {
+        "description": "Operativt ansvar for oppfølging og rapportering av gevinster",
+        "recommended_questions": {
+            "Planlegging": [1, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+            "Gjennomføring": [1, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+            "Realisering": [1, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+            "Realisert": [1, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17]
         }
     },
     "Linjeleder / Mottaker": {
@@ -128,15 +136,6 @@ ROLES = {
             "Gjennomføring": [2, 8, 9, 18, 19, 20, 22, 23],
             "Realisering": [1, 2, 8, 9, 18, 19, 20, 22, 23],
             "Realisert": [1, 2, 8, 18, 19, 20, 22, 23]
-        }
-    },
-    "Fagekspert / SME": {
-        "description": "Faglig ekspertise på gevinstområdet",
-        "recommended_questions": {
-            "Planlegging": [1, 3, 5, 6, 7, 9, 10, 11, 14, 15],
-            "Gjennomføring": [1, 5, 6, 7, 9, 10, 11, 14, 15],
-            "Realisering": [1, 5, 6, 7, 9, 10, 11, 14, 15],
-            "Realisert": [1, 5, 6, 7, 9, 10, 11, 14, 15]
         }
     }
 }
@@ -188,7 +187,7 @@ PARAMETERS = {
 }
 
 # ============================================================================
-# KOMPLETT SPØRSMÅLSSETT - ALLE 23 SPØRSMÅL PER FASE (UENDRET)
+# KOMPLETT SPØRSMÅLSSETT - ALLE 23 SPØRSMÅL PER FASE
 # ============================================================================
 PHASES = ["Planlegging", "Gjennomføring", "Realisering", "Realisert"]
 
@@ -420,107 +419,29 @@ def persist_data():
     save_data(st.session_state.app_data)
 
 # ============================================================================
-# STYLING - BANE NOR FARGER (MINIMALE IKONER)
+# STYLING
 # ============================================================================
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap');
 html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
 
-.main-header {{ 
-    font-size: 2rem; 
-    color: {COLORS['primary_dark']}; 
-    text-align: center; 
-    margin-bottom: 0.3rem; 
-    font-weight: 700; 
-}}
-.sub-header {{ 
-    font-size: 0.95rem; 
-    color: {COLORS['primary']}; 
-    text-align: center; 
-    margin-bottom: 1.5rem; 
-}}
+.main-header {{ font-size: 2rem; color: {COLORS['primary_dark']}; text-align: center; margin-bottom: 0.3rem; font-weight: 700; }}
+.sub-header {{ font-size: 0.95rem; color: {COLORS['primary']}; text-align: center; margin-bottom: 1.5rem; }}
 
-.info-box {{ 
-    background: linear-gradient(135deg, #C4EFFF 0%, {COLORS['gray_light']} 100%); 
-    padding: 1rem; 
-    border-radius: 8px; 
-    border-left: 4px solid {COLORS['primary_light']}; 
-    margin: 0.8rem 0; 
-}}
-.success-box {{ 
-    background: linear-gradient(135deg, #DDFAE2 0%, {COLORS['gray_light']} 100%); 
-    padding: 1rem; 
-    border-radius: 8px; 
-    border-left: 4px solid {COLORS['success']}; 
-    margin: 0.8rem 0; 
-}}
-.warning-box {{ 
-    background: linear-gradient(135deg, rgba(255, 160, 64, 0.15) 0%, {COLORS['gray_light']} 100%); 
-    padding: 1rem; 
-    border-radius: 8px; 
-    border-left: 4px solid {COLORS['warning']}; 
-    margin: 0.8rem 0; 
-}}
-.danger-box {{ 
-    background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, {COLORS['gray_light']} 100%); 
-    padding: 1rem; 
-    border-radius: 8px; 
-    border-left: 4px solid {COLORS['danger']}; 
-    margin: 0.8rem 0; 
-}}
+.info-box {{ background: linear-gradient(135deg, #C4EFFF 0%, {COLORS['gray_light']} 100%); padding: 1rem; border-radius: 8px; border-left: 4px solid {COLORS['primary_light']}; margin: 0.8rem 0; }}
+.success-box {{ background: linear-gradient(135deg, #DDFAE2 0%, {COLORS['gray_light']} 100%); padding: 1rem; border-radius: 8px; border-left: 4px solid {COLORS['success']}; margin: 0.8rem 0; }}
+.warning-box {{ background: linear-gradient(135deg, rgba(255, 160, 64, 0.15) 0%, {COLORS['gray_light']} 100%); padding: 1rem; border-radius: 8px; border-left: 4px solid {COLORS['warning']}; margin: 0.8rem 0; }}
 
-.metric-card {{ 
-    background: {COLORS['gray_light']}; 
-    padding: 1rem; 
-    border-radius: 8px; 
-    border-left: 4px solid {COLORS['primary']}; 
-    text-align: center; 
-    margin: 0.3rem 0; 
-}}
+.metric-card {{ background: {COLORS['gray_light']}; padding: 1rem; border-radius: 8px; border-left: 4px solid {COLORS['primary']}; text-align: center; margin: 0.3rem 0; }}
 .metric-value {{ font-size: 1.6rem; font-weight: 700; color: {COLORS['primary_dark']}; }}
 .metric-label {{ font-size: 0.75rem; color: #666; text-transform: uppercase; }}
 
-.strength-card {{ 
-    background: linear-gradient(135deg, #DDFAE2 0%, {COLORS['gray_light']} 100%); 
-    padding: 0.8rem; 
-    border-radius: 8px; 
-    border-left: 4px solid {COLORS['success']}; 
-    margin: 0.4rem 0; 
-}}
-.improvement-card {{ 
-    background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, {COLORS['gray_light']} 100%); 
-    padding: 0.8rem; 
-    border-radius: 8px; 
-    border-left: 4px solid {COLORS['danger']}; 
-    margin: 0.4rem 0; 
-}}
+.strength-card {{ background: linear-gradient(135deg, #DDFAE2 0%, {COLORS['gray_light']} 100%); padding: 0.8rem; border-radius: 8px; border-left: 4px solid {COLORS['success']}; margin: 0.4rem 0; }}
+.improvement-card {{ background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, {COLORS['gray_light']} 100%); padding: 0.8rem; border-radius: 8px; border-left: 4px solid {COLORS['danger']}; margin: 0.4rem 0; }}
 
-.recommended-tag {{ 
-    background: {COLORS['success']}; 
-    color: white; 
-    padding: 0.1rem 0.4rem; 
-    border-radius: 4px; 
-    font-size: 0.7rem; 
-    margin-left: 0.3rem; 
-}}
-
-.stButton > button {{ 
-    background: linear-gradient(135deg, {COLORS['primary']} 0%, {COLORS['primary_dark']} 100%); 
-    color: white; 
-    border: none; 
-    border-radius: 6px; 
-    padding: 0.5rem 1rem; 
-    font-weight: 600; 
-}}
-.stButton > button:hover {{ 
-    transform: translateY(-1px); 
-    box-shadow: 0 4px 12px rgba(0, 83, 166, 0.3); 
-}}
-
-.stProgress > div > div > div > div {{ 
-    background: linear-gradient(90deg, {COLORS['primary_light']} 0%, {COLORS['success']} 100%); 
-}}
+.stButton > button {{ background: linear-gradient(135deg, {COLORS['primary']} 0%, {COLORS['primary_dark']} 100%); color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; font-weight: 600; }}
+.stProgress > div > div > div > div {{ background: linear-gradient(90deg, {COLORS['primary_light']} 0%, {COLORS['success']} 100%); }}
 
 #MainMenu {{visibility: hidden;}}
 footer {{visibility: hidden;}}
@@ -620,10 +541,7 @@ def calculate_stats(initiative, benefit_filter=None):
                     if q_id in stats['questions'][phase]:
                         param_scores.append(stats['questions'][phase][q_id]['avg'])
         if param_scores:
-            stats['parameters'][param_name] = {
-                'avg': np.mean(param_scores),
-                'description': param_data['description']
-            }
+            stats['parameters'][param_name] = {'avg': np.mean(param_scores), 'description': param_data['description']}
     
     if all_avgs:
         stats['overall_avg'] = np.mean(all_avgs)
@@ -637,152 +555,69 @@ def calculate_stats(initiative, benefit_filter=None):
 # DIAGRAMMER
 # ============================================================================
 def create_phase_radar(phase_data):
-    """Radardiagram for faser"""
     if not phase_data:
         return None
-    
     categories = list(phase_data.keys())
     values = [phase_data[c]['avg'] for c in categories]
-    
-    # Minimum 3 punkter for radar
     if len(categories) < 3:
-        # Bruk bar chart i stedet
-        fig = go.Figure(data=[
-            go.Bar(x=categories, y=values, marker_color=COLORS['primary'])
-        ])
-        fig.update_layout(
-            yaxis=dict(range=[0, 5], title="Score"),
-            height=350,
-            margin=dict(l=40, r=40, t=40, b=40)
-        )
+        fig = go.Figure(data=[go.Bar(x=categories, y=values, marker_color=COLORS['primary'])])
+        fig.update_layout(yaxis=dict(range=[0, 5], title="Score"), height=350, margin=dict(l=40, r=40, t=40, b=40))
         return fig
-    
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=values + [values[0]], 
-        theta=categories + [categories[0]],
-        fill='toself', 
-        fillcolor=f'rgba(0, 83, 166, 0.3)', 
-        line=dict(color=COLORS['primary'], width=3),
-        name='Modenhet'
-    ))
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5])),
-        showlegend=False, 
-        height=350, 
-        margin=dict(l=80, r=80, t=40, b=40),
-        paper_bgcolor='white'
-    )
+    fig.add_trace(go.Scatterpolar(r=values + [values[0]], theta=categories + [categories[0]], fill='toself', fillcolor='rgba(0, 83, 166, 0.3)', line=dict(color=COLORS['primary'], width=3)))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5])), showlegend=False, height=350, margin=dict(l=80, r=80, t=40, b=40))
     return fig
 
 def create_parameter_radar(param_data):
-    """Radardiagram for parametere"""
     if not param_data:
         return None
-    
     categories = list(param_data.keys())
     values = [param_data[c]['avg'] for c in categories]
-    
     if len(categories) < 3:
-        fig = go.Figure(data=[
-            go.Bar(x=categories, y=values, marker_color=COLORS['primary_light'])
-        ])
-        fig.update_layout(
-            yaxis=dict(range=[0, 5], title="Score"),
-            height=350,
-            margin=dict(l=40, r=40, t=40, b=40)
-        )
+        fig = go.Figure(data=[go.Bar(x=categories, y=values, marker_color=COLORS['primary_light'])])
+        fig.update_layout(yaxis=dict(range=[0, 5], title="Score"), height=350, margin=dict(l=40, r=40, t=40, b=40))
         return fig
-    
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=values + [values[0]], 
-        theta=categories + [categories[0]],
-        fill='toself', 
-        fillcolor='rgba(100, 200, 250, 0.3)', 
-        line=dict(color=COLORS['primary_light'], width=3)
-    ))
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
-        showlegend=False, 
-        height=400, 
-        margin=dict(l=100, r=100, t=40, b=40)
-    )
+    fig.add_trace(go.Scatterpolar(r=values + [values[0]], theta=categories + [categories[0]], fill='toself', fillcolor='rgba(100, 200, 250, 0.3)', line=dict(color=COLORS['primary_light'], width=3)))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=False, height=400, margin=dict(l=100, r=100, t=40, b=40))
     return fig
 
-def create_strength_bar_chart(high_maturity_items, max_items=8):
-    """Søylediagram for styrkeområder"""
-    if not high_maturity_items:
+def create_strength_bar_chart(items, max_items=8):
+    if not items:
         return None
-    
-    items = high_maturity_items[:max_items]
-    labels = [f"{item['phase'][:4]}: {item['title'][:25]}..." if len(item['title']) > 25 else f"{item['phase'][:4]}: {item['title']}" for item in items]
+    items = items[:max_items]
+    labels = [f"{item['phase'][:4]}: {item['title'][:20]}..." if len(item['title']) > 20 else f"{item['phase'][:4]}: {item['title']}" for item in items]
     scores = [item['score'] for item in items]
-    
-    fig = go.Figure(data=[
-        go.Bar(
-            x=scores, 
-            y=labels, 
-            orientation='h',
-            marker_color=COLORS['success'],
-            text=[f"{s:.1f}" for s in scores],
-            textposition='outside'
-        )
-    ])
-    fig.update_layout(
-        xaxis=dict(range=[0, 5.5], title="Score"),
-        yaxis=dict(autorange="reversed"),
-        height=max(250, len(items) * 35),
-        margin=dict(l=200, r=50, t=20, b=40),
-        paper_bgcolor='white'
-    )
+    fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=COLORS['success'], text=[f"{s:.1f}" for s in scores], textposition='outside')])
+    fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score"), yaxis=dict(autorange="reversed"), height=max(250, len(items) * 35), margin=dict(l=200, r=50, t=20, b=40))
     return fig
 
-def create_improvement_bar_chart(low_maturity_items, max_items=8):
-    """Søylediagram for forbedringsområder"""
-    if not low_maturity_items:
+def create_improvement_bar_chart(items, max_items=8):
+    if not items:
         return None
-    
-    items = low_maturity_items[:max_items]
-    labels = [f"{item['phase'][:4]}: {item['title'][:25]}..." if len(item['title']) > 25 else f"{item['phase'][:4]}: {item['title']}" for item in items]
+    items = items[:max_items]
+    labels = [f"{item['phase'][:4]}: {item['title'][:20]}..." if len(item['title']) > 20 else f"{item['phase'][:4]}: {item['title']}" for item in items]
     scores = [item['score'] for item in items]
-    
-    fig = go.Figure(data=[
-        go.Bar(
-            x=scores, 
-            y=labels, 
-            orientation='h',
-            marker_color=COLORS['danger'],
-            text=[f"{s:.1f}" for s in scores],
-            textposition='outside'
-        )
-    ])
-    fig.update_layout(
-        xaxis=dict(range=[0, 5.5], title="Score"),
-        yaxis=dict(autorange="reversed"),
-        height=max(250, len(items) * 35),
-        margin=dict(l=200, r=50, t=20, b=40),
-        paper_bgcolor='white'
-    )
+    fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=COLORS['danger'], text=[f"{s:.1f}" for s in scores], textposition='outside')])
+    fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score"), yaxis=dict(autorange="reversed"), height=max(250, len(items) * 35), margin=dict(l=200, r=50, t=20, b=40))
     return fig
 
 # ============================================================================
-# RAPPORT-GENERERING (WORD/PDF)
+# RAPPORT-GENERERING
 # ============================================================================
 def generate_word_report(initiative, stats):
     """Generer Word-rapport"""
     try:
         from docx import Document
-        from docx.shared import Inches, Pt, RGBColor
+        from docx.shared import Pt, Inches
         from docx.enum.text import WD_ALIGN_PARAGRAPH
         
         doc = Document()
         
         # Tittel
-        title = doc.add_heading('Modenhetsvurdering', 0)
+        title = doc.add_heading('Modenhetsvurdering - Gevinstrealisering', 0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        # Undertittel
         subtitle = doc.add_paragraph('Bane NOR - Konsern økonomi og digital transformasjon')
         subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
@@ -791,56 +626,120 @@ def generate_word_report(initiative, stats):
         # Sammendrag
         doc.add_heading('Sammendrag', level=1)
         doc.add_paragraph(f"Endringsinitiativ: {initiative['name']}")
-        doc.add_paragraph(f"Dato: {datetime.now().strftime('%d.%m.%Y')}")
+        doc.add_paragraph(f"Beskrivelse: {initiative.get('description', '-')}")
+        doc.add_paragraph(f"Rapportdato: {datetime.now().strftime('%d.%m.%Y')}")
         doc.add_paragraph(f"Antall intervjuer: {stats['total_interviews']}")
         doc.add_paragraph(f"Samlet modenhet: {stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})")
         
         # Modenhet per fase
         if stats['phases']:
             doc.add_heading('Modenhet per fase', level=1)
+            table = doc.add_table(rows=1, cols=2)
+            table.style = 'Table Grid'
+            hdr_cells = table.rows[0].cells
+            hdr_cells[0].text = 'Fase'
+            hdr_cells[1].text = 'Score'
             for phase, data in stats['phases'].items():
-                doc.add_paragraph(f"• {phase}: {data['avg']:.2f}")
+                row_cells = table.add_row().cells
+                row_cells[0].text = phase
+                row_cells[1].text = f"{data['avg']:.2f}"
         
         # Styrkeområder
         if stats['high_maturity']:
-            doc.add_heading('Styrkeområder (score ≥ 4)', level=1)
+            doc.add_heading('Styrkeområder (score >= 4)', level=1)
             for item in stats['high_maturity'][:10]:
-                doc.add_paragraph(f"• [{item['phase']}] {item['title']}: {item['score']:.2f}")
+                doc.add_paragraph(f"• [{item['phase']}] {item['title']}: {item['score']:.2f}", style='List Bullet')
         
         # Forbedringsområder
         if stats['low_maturity']:
             doc.add_heading('Forbedringsområder (score < 3)', level=1)
             for item in stats['low_maturity'][:10]:
-                doc.add_paragraph(f"• [{item['phase']}] {item['title']}: {item['score']:.2f}")
+                doc.add_paragraph(f"• [{item['phase']}] {item['title']}: {item['score']:.2f}", style='List Bullet')
         
         # Parameterresultater
         if stats['parameters']:
             doc.add_heading('Resultater per parameter', level=1)
+            table = doc.add_table(rows=1, cols=2)
+            table.style = 'Table Grid'
+            hdr_cells = table.rows[0].cells
+            hdr_cells[0].text = 'Parameter'
+            hdr_cells[1].text = 'Score'
             for param_name, param_data in stats['parameters'].items():
-                doc.add_paragraph(f"• {param_name}: {param_data['avg']:.2f}")
+                row_cells = table.add_row().cells
+                row_cells[0].text = param_name
+                row_cells[1].text = f"{param_data['avg']:.2f}"
         
-        # Lagre til fil
-        filename = f"modenhet_{initiative['name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.docx"
-        filepath = os.path.join(tempfile.gettempdir(), filename)
-        doc.save(filepath)
-        
-        return filepath, filename
+        # Lagre
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer
         
     except ImportError:
-        return None, None
+        return None
 
-def convert_to_pdf(docx_path):
-    """Konverter Word til PDF"""
-    try:
-        pdf_path = docx_path.replace('.docx', '.pdf')
-        subprocess.run(['soffice', '--headless', '--convert-to', 'pdf', '--outdir', 
-                       os.path.dirname(docx_path), docx_path], 
-                      capture_output=True, timeout=30)
-        if os.path.exists(pdf_path):
-            return pdf_path
-    except:
-        pass
-    return None
+def generate_pdf_report(initiative, stats):
+    """Generer PDF-rapport via HTML"""
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Source Sans Pro', Arial, sans-serif; margin: 40px; color: #172141; }}
+            h1 {{ color: #0053A6; text-align: center; border-bottom: 3px solid #64C8FA; padding-bottom: 10px; }}
+            h2 {{ color: #172141; margin-top: 30px; border-left: 4px solid #0053A6; padding-left: 10px; }}
+            .summary {{ background: #F2FAFD; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
+            th, td {{ border: 1px solid #E8E8E8; padding: 10px; text-align: left; }}
+            th {{ background: #0053A6; color: white; }}
+            .strength {{ color: #35DE6D; }}
+            .improvement {{ color: #FF6B6B; }}
+            .footer {{ text-align: center; margin-top: 40px; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <h1>Modenhetsvurdering - Gevinstrealisering</h1>
+        <p style="text-align: center; color: #0053A6;">Bane NOR - Konsern økonomi og digital transformasjon</p>
+        
+        <div class="summary">
+            <h2>Sammendrag</h2>
+            <p><strong>Endringsinitiativ:</strong> {initiative['name']}</p>
+            <p><strong>Beskrivelse:</strong> {initiative.get('description', '-')}</p>
+            <p><strong>Rapportdato:</strong> {datetime.now().strftime('%d.%m.%Y')}</p>
+            <p><strong>Antall intervjuer:</strong> {stats['total_interviews']}</p>
+            <p><strong>Samlet modenhet:</strong> {stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})</p>
+        </div>
+        
+        <h2>Modenhet per fase</h2>
+        <table>
+            <tr><th>Fase</th><th>Score</th></tr>
+            {''.join(f"<tr><td>{phase}</td><td>{data['avg']:.2f}</td></tr>" for phase, data in stats['phases'].items())}
+        </table>
+        
+        <h2>Styrkeområder (score >= 4)</h2>
+        <ul>
+            {''.join(f"<li class='strength'>[{item['phase']}] {item['title']}: {item['score']:.2f}</li>" for item in stats['high_maturity'][:10])}
+        </ul>
+        
+        <h2>Forbedringsområder (score < 3)</h2>
+        <ul>
+            {''.join(f"<li class='improvement'>[{item['phase']}] {item['title']}: {item['score']:.2f}</li>" for item in stats['low_maturity'][:10])}
+        </ul>
+        
+        <h2>Resultater per parameter</h2>
+        <table>
+            <tr><th>Parameter</th><th>Score</th></tr>
+            {''.join(f"<tr><td>{name}</td><td>{data['avg']:.2f}</td></tr>" for name, data in stats['parameters'].items())}
+        </table>
+        
+        <div class="footer">
+            <p>Generert {datetime.now().strftime('%d.%m.%Y %H:%M')} | Bane NOR - Konsern økonomi og digital transformasjon</p>
+        </div>
+    </body>
+    </html>
+    """
+    return html_content
 
 # ============================================================================
 # HOVEDAPPLIKASJON
@@ -849,138 +748,82 @@ def main():
     data = get_data()
     
     # Header
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        try:
-            st.image("bane_nor_logo.png.jpg", width=180)
-        except:
-            st.markdown(f"<h2 style='color:{COLORS['primary_dark']};text-align:center;'>Bane NOR</h2>", unsafe_allow_html=True)
-    
     st.markdown('<h1 class="main-header">Modenhetsvurdering</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">I samarbeid med Konsern økonomi og digital transformasjon</p>', unsafe_allow_html=True)
     
     # Navigasjon
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "Om vurderingen",
-        "Endringsinitiativ",
-        "Intervju", 
-        "Resultater",
-        "Rapport"
-    ])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Om vurderingen", "Endringsinitiativ", "Intervju", "Resultater", "Rapport"])
     
-    # =========================================================================
     # TAB 1: OM VURDERINGEN
-    # =========================================================================
     with tab1:
         st.markdown(HENSIKT_TEKST)
-        
         st.markdown("---")
-        
         col1, col2 = st.columns(2)
-        
         with col1:
             st.markdown("### Tilgjengelige roller")
             for role_name, role_data in ROLES.items():
                 st.markdown(f"**{role_name}**")
                 st.caption(role_data['description'])
-        
         with col2:
             st.markdown("### Tilgjengelige parametere")
             for param_name, param_data in PARAMETERS.items():
                 st.markdown(f"**{param_name}**")
-                st.caption(f"{param_data['description']} (Sp. {', '.join(map(str, param_data['questions']))})")
+                st.caption(param_data['description'])
     
-    # =========================================================================
     # TAB 2: ENDRINGSINITIATIV
-    # =========================================================================
     with tab2:
         st.markdown("## Endringsinitiativ og gevinster")
-        
         col1, col2 = st.columns([2, 1])
         
         with col2:
             st.markdown("### Nytt endringsinitiativ")
             with st.form("new_initiative"):
-                init_name = st.text_input("Navn på endringsinitiativ", placeholder="F.eks. ERTMS Østlandet")
-                init_desc = st.text_area("Beskrivelse", placeholder="Kort beskrivelse...", height=80)
-                
+                init_name = st.text_input("Navn", placeholder="F.eks. ERTMS Østlandet")
+                init_desc = st.text_area("Beskrivelse", height=80)
                 if st.form_submit_button("Opprett", use_container_width=True):
                     if init_name:
                         init_id = datetime.now().strftime("%Y%m%d%H%M%S")
-                        data['initiatives'][init_id] = {
-                            'name': init_name,
-                            'description': init_desc,
-                            'created': datetime.now().isoformat(),
-                            'benefits': {},
-                            'interviews': {}
-                        }
+                        data['initiatives'][init_id] = {'name': init_name, 'description': init_desc, 'created': datetime.now().isoformat(), 'benefits': {}, 'interviews': {}}
                         persist_data()
                         st.success(f"'{init_name}' opprettet!")
                         st.rerun()
-                    else:
-                        st.error("Skriv inn et navn")
         
         with col1:
             st.markdown("### Mine endringsinitiativ")
-            
             if not data['initiatives']:
-                st.markdown('<div class="info-box">Ingen endringsinitiativ ennå. Opprett et nytt for å starte.</div>', unsafe_allow_html=True)
+                st.info("Ingen endringsinitiativ ennå. Opprett et nytt for å starte.")
             else:
                 for init_id, initiative in data['initiatives'].items():
                     num_interviews = len(initiative.get('interviews', {}))
                     num_benefits = len(initiative.get('benefits', {}))
-                    
-                    with st.expander(f"{initiative['name']} ({num_benefits} gevinster, {num_interviews} intervjuer)", expanded=False):
+                    with st.expander(f"{initiative['name']} ({num_benefits} gevinster, {num_interviews} intervjuer)"):
                         st.write(f"**Beskrivelse:** {initiative.get('description', 'Ingen')}")
-                        
-                        st.markdown("---")
-                        st.markdown("#### Gevinster i dette initiativet")
-                        
+                        st.markdown("#### Gevinster")
                         with st.form(f"add_benefit_{init_id}"):
-                            col_a, col_b = st.columns([3, 1])
-                            with col_a:
-                                new_benefit = st.text_input("Ny gevinst", placeholder="F.eks. Redusert reisetid", key=f"ben_{init_id}")
-                            with col_b:
-                                st.write("")
-                                add_benefit = st.form_submit_button("Legg til")
-                            
-                            if add_benefit and new_benefit:
-                                if 'benefits' not in initiative:
-                                    initiative['benefits'] = {}
-                                benefit_id = datetime.now().strftime("%Y%m%d%H%M%S%f")
-                                initiative['benefits'][benefit_id] = {
-                                    'name': new_benefit,
-                                    'created': datetime.now().isoformat()
-                                }
+                            new_benefit = st.text_input("Ny gevinst", key=f"ben_{init_id}")
+                            if st.form_submit_button("Legg til"):
+                                if new_benefit:
+                                    if 'benefits' not in initiative:
+                                        initiative['benefits'] = {}
+                                    initiative['benefits'][datetime.now().strftime("%Y%m%d%H%M%S%f")] = {'name': new_benefit, 'created': datetime.now().isoformat()}
+                                    persist_data()
+                                    st.rerun()
+                        for ben_id, benefit in initiative.get('benefits', {}).items():
+                            col_a, col_b = st.columns([4, 1])
+                            col_a.write(f"• {benefit['name']}")
+                            if col_b.button("Slett", key=f"del_ben_{ben_id}"):
+                                del initiative['benefits'][ben_id]
                                 persist_data()
                                 st.rerun()
-                        
-                        if initiative.get('benefits'):
-                            for ben_id, benefit in initiative['benefits'].items():
-                                col_a, col_b = st.columns([4, 1])
-                                with col_a:
-                                    st.write(f"• {benefit['name']}")
-                                with col_b:
-                                    if st.button("Slett", key=f"del_ben_{ben_id}"):
-                                        del initiative['benefits'][ben_id]
-                                        persist_data()
-                                        st.rerun()
-                        else:
-                            st.caption("Ingen gevinster registrert ennå")
-                        
                         st.markdown("---")
-                        
                         if st.button("Slett initiativ", key=f"del_{init_id}"):
                             del data['initiatives'][init_id]
                             persist_data()
                             st.rerun()
     
-    # =========================================================================
     # TAB 3: INTERVJU
-    # =========================================================================
     with tab3:
         st.markdown("## Gjennomfør intervju")
-        
         if not data['initiatives']:
             st.warning("Opprett et endringsinitiativ først")
         else:
@@ -989,281 +832,129 @@ def main():
             selected_init_id = init_options[selected_init_name]
             initiative = data['initiatives'][selected_init_id]
             
-            st.markdown("---")
-            
             if 'active_interview' not in st.session_state:
                 col1, col2 = st.columns(2)
-                
                 with col1:
                     st.markdown("### Start nytt intervju")
-                    
-                    # Steg 1: Gevinst
-                    st.markdown("**Steg 1: Velg gevinst (valgfritt)**")
                     benefit_options = {"Generelt for initiativet": "all"}
-                    if initiative.get('benefits'):
-                        for ben_id, ben in initiative['benefits'].items():
-                            benefit_options[ben['name']] = ben_id
-                    
-                    selected_benefit_name = st.selectbox(
-                        "Hvilken gevinst gjelder intervjuet?",
-                        options=list(benefit_options.keys())
-                    )
+                    for ben_id, ben in initiative.get('benefits', {}).items():
+                        benefit_options[ben['name']] = ben_id
+                    selected_benefit_name = st.selectbox("Gevinst", options=list(benefit_options.keys()))
                     selected_benefit_id = benefit_options[selected_benefit_name]
-                    
-                    # Steg 2: Fase
-                    st.markdown("**Steg 2: Velg fase**")
-                    selected_phase = st.selectbox("Hvilken fase vurderes?", options=PHASES)
-                    
-                    # Steg 3: Modus
-                    st.markdown("**Steg 3: Velg fokusmodus**")
-                    focus_mode = st.radio(
-                        "Hvordan vil du prioritere spørsmålene?",
-                        options=["Rollebasert", "Parameterbasert", "Alle spørsmål (ingen prioritering)"],
-                        horizontal=True
-                    )
+                    selected_phase = st.selectbox("Fase", options=PHASES)
+                    focus_mode = st.radio("Fokusmodus", options=["Rollebasert", "Parameterbasert", "Alle spørsmål"], horizontal=True)
                     
                     selected_role = None
                     selected_params = []
                     recommended = []
                     
                     if focus_mode == "Rollebasert":
-                        selected_role = st.selectbox(
-                            "Velg intervjuobjektets rolle:",
-                            options=list(ROLES.keys())
-                        )
+                        selected_role = st.selectbox("Rolle", options=list(ROLES.keys()))
                         recommended = get_recommended_questions("role", selected_role, selected_phase)
-                        st.markdown(f"*{ROLES[selected_role]['description']}*")
-                        st.markdown(f'<div class="success-box"><strong>{len(recommended)} anbefalte spørsmål</strong> for denne rollen i {selected_phase}-fasen. Alle 23 spørsmål er tilgjengelige.</div>', unsafe_allow_html=True)
-                    
+                        st.caption(ROLES[selected_role]['description'])
+                        st.success(f"{len(recommended)} anbefalte spørsmål. Alle 23 tilgjengelige.")
                     elif focus_mode == "Parameterbasert":
-                        selected_params = st.multiselect(
-                            "Velg 2-4 parametere å fokusere på:",
-                            options=list(PARAMETERS.keys()),
-                            default=list(PARAMETERS.keys())[:2]
-                        )
+                        selected_params = st.multiselect("Parametere", options=list(PARAMETERS.keys()), default=list(PARAMETERS.keys())[:2])
                         recommended = get_recommended_questions("parameter", selected_params, selected_phase)
-                        st.markdown(f'<div class="success-box"><strong>{len(recommended)} anbefalte spørsmål</strong> fra valgte parametere. Alle 23 spørsmål er tilgjengelige.</div>', unsafe_allow_html=True)
-                    
-                    # Steg 4: Intervjuinfo
-                    st.markdown("---")
-                    st.markdown("**Steg 4: Intervjuinfo**")
+                        st.success(f"{len(recommended)} anbefalte spørsmål. Alle 23 tilgjengelige.")
                     
                     with st.form("new_interview"):
-                        interviewer = st.text_input("Intervjuer (deg)", placeholder="Ditt navn")
-                        interviewee = st.text_input("Intervjuobjekt", placeholder="Navn på personen")
-                        role_title = st.text_input("Stilling", placeholder="F.eks. Prosjektleder")
+                        interviewer = st.text_input("Intervjuer")
+                        interviewee = st.text_input("Intervjuobjekt")
+                        role_title = st.text_input("Stilling")
                         date = st.date_input("Dato", value=datetime.now())
-                        
                         if st.form_submit_button("Start intervju", use_container_width=True):
                             if interviewee:
                                 interview_id = datetime.now().strftime("%Y%m%d%H%M%S")
-                                
                                 initiative['interviews'][interview_id] = {
-                                    'info': {
-                                        'interviewer': interviewer,
-                                        'interviewee': interviewee,
-                                        'role': role_title,
-                                        'date': date.strftime('%Y-%m-%d'),
-                                        'phase': selected_phase,
-                                        'benefit_id': selected_benefit_id,
-                                        'benefit_name': selected_benefit_name,
-                                        'focus_mode': focus_mode,
-                                        'selected_role': selected_role,
-                                        'selected_params': selected_params
-                                    },
-                                    'recommended_questions': recommended,
-                                    'responses': {}
+                                    'info': {'interviewer': interviewer, 'interviewee': interviewee, 'role': role_title, 'date': date.strftime('%Y-%m-%d'), 'phase': selected_phase, 'benefit_id': selected_benefit_id, 'benefit_name': selected_benefit_name, 'focus_mode': focus_mode, 'selected_role': selected_role, 'selected_params': selected_params},
+                                    'recommended_questions': recommended, 'responses': {}
                                 }
                                 persist_data()
-                                st.session_state['active_interview'] = {
-                                    'init_id': selected_init_id,
-                                    'interview_id': interview_id
-                                }
-                                st.success(f"Intervju med {interviewee} startet!")
+                                st.session_state['active_interview'] = {'init_id': selected_init_id, 'interview_id': interview_id}
                                 st.rerun()
-                            else:
-                                st.error("Skriv inn navn på intervjuobjekt")
                 
                 with col2:
                     st.markdown("### Fortsett eksisterende")
                     if initiative['interviews']:
-                        interview_options = {}
-                        for iid, i in initiative['interviews'].items():
-                            benefit = i['info'].get('benefit_name', 'Generelt')
-                            phase = i['info'].get('phase', 'Ukjent')
-                            interview_options[f"{i['info']['interviewee']} - {benefit} ({phase})"] = iid
-                        
+                        interview_options = {f"{i['info']['interviewee']} - {i['info'].get('benefit_name', 'Generelt')} ({i['info'].get('phase', '?')})": iid for iid, i in initiative['interviews'].items()}
                         selected_interview = st.selectbox("Velg intervju", options=list(interview_options.keys()))
-                        
-                        if st.button("Fortsett dette intervjuet", use_container_width=True):
-                            st.session_state['active_interview'] = {
-                                'init_id': selected_init_id,
-                                'interview_id': interview_options[selected_interview]
-                            }
+                        if st.button("Fortsett", use_container_width=True):
+                            st.session_state['active_interview'] = {'init_id': selected_init_id, 'interview_id': interview_options[selected_interview]}
                             st.rerun()
-                    else:
-                        st.info("Ingen intervjuer i dette endringsinitiativet ennå")
             
             else:
-                # AKTIVT INTERVJU
                 active = st.session_state['active_interview']
-                
                 if active['init_id'] in data['initiatives']:
                     initiative = data['initiatives'][active['init_id']]
                     if active['interview_id'] in initiative['interviews']:
                         interview = initiative['interviews'][active['interview_id']]
-                        
                         phase = interview['info'].get('phase', 'Planlegging')
                         recommended = interview.get('recommended_questions', [])
                         
-                        # Header
-                        st.markdown(f"""
-                        ### Intervju: {interview['info']['interviewee']}
-                        **Gevinst:** {interview['info'].get('benefit_name', 'Generelt')} | 
-                        **Fase:** {phase} | 
-                        **Stilling:** {interview['info']['role']} | 
-                        **Dato:** {interview['info']['date']}
-                        """)
+                        st.markdown(f"### Intervju: {interview['info']['interviewee']}")
+                        st.caption(f"Gevinst: {interview['info'].get('benefit_name', 'Generelt')} | Fase: {phase} | Stilling: {interview['info']['role']}")
                         
                         if phase not in interview['responses']:
                             interview['responses'][phase] = {}
                         
-                        # Fremdrift
-                        answered = sum(1 for q_id in range(1, 24) 
-                                      if interview['responses'][phase].get(str(q_id), {}).get('score', 0) > 0)
-                        
+                        answered = sum(1 for q_id in range(1, 24) if interview['responses'][phase].get(str(q_id), {}).get('score', 0) > 0)
                         st.progress(answered / 23)
-                        st.caption(f"Besvart: {answered} av 23 spørsmål")
+                        st.caption(f"Besvart: {answered} av 23")
                         
-                        if recommended:
-                            st.markdown(f"**{len(recommended)} anbefalte spørsmål** basert på valgt rolle/parametere er markert")
-                        
-                        st.markdown("---")
-                        
-                        # ALLE 23 SPØRSMÅL
                         questions = questions_data[phase]
                         recommended_qs = [q for q in questions if q['id'] in recommended]
                         other_qs = [q for q in questions if q['id'] not in recommended]
                         
-                        # Anbefalte spørsmål
                         if recommended_qs:
-                            st.markdown("### Anbefalte spørsmål for denne rollen/parameterne")
-                            
+                            st.markdown("### Anbefalte spørsmål")
                             for q in recommended_qs:
                                 q_id_str = str(q['id'])
-                                
                                 if q_id_str not in interview['responses'][phase]:
                                     interview['responses'][phase][q_id_str] = {'score': 0, 'notes': ''}
-                                
                                 resp = interview['responses'][phase][q_id_str]
                                 status = "✓" if resp['score'] > 0 else "○"
-                                score_display = f" - Nivå {resp['score']}" if resp['score'] > 0 else ""
-                                
-                                with st.expander(f"{status} {q['id']}. {q['title']}{score_display}", expanded=(resp['score'] == 0)):
+                                with st.expander(f"{status} {q['id']}. {q['title']}" + (f" - Nivå {resp['score']}" if resp['score'] > 0 else ""), expanded=(resp['score'] == 0)):
                                     st.markdown(f"**{q['question']}**")
-                                    
-                                    st.markdown("**Modenhetsskala:**")
                                     for level in q['scale']:
                                         st.write(f"- {level}")
-                                    
-                                    st.markdown("---")
-                                    
-                                    new_score = st.radio(
-                                        "Velg nivå:",
-                                        options=[0, 1, 2, 3, 4, 5],
-                                        index=resp['score'],
-                                        key=f"s_{phase}_{q['id']}",
-                                        horizontal=True,
-                                        format_func=lambda x: "Ikke vurdert" if x == 0 else f"Nivå {x}"
-                                    )
-                                    
-                                    new_notes = st.text_area(
-                                        "Notater:",
-                                        value=resp['notes'],
-                                        key=f"n_{phase}_{q['id']}",
-                                        placeholder="Begrunnelse, sitater, observasjoner...",
-                                        height=80
-                                    )
-                                    
+                                    new_score = st.radio("Nivå:", options=[0,1,2,3,4,5], index=resp['score'], key=f"s_{phase}_{q['id']}", horizontal=True, format_func=lambda x: "Ikke vurdert" if x == 0 else f"Nivå {x}")
+                                    new_notes = st.text_area("Notater:", value=resp['notes'], key=f"n_{phase}_{q['id']}", height=80)
                                     if st.button("Lagre", key=f"save_{phase}_{q['id']}"):
-                                        interview['responses'][phase][q_id_str] = {
-                                            'score': new_score,
-                                            'notes': new_notes
-                                        }
+                                        interview['responses'][phase][q_id_str] = {'score': new_score, 'notes': new_notes}
                                         persist_data()
-                                        st.success("Lagret!")
                                         st.rerun()
                         
-                        # Andre spørsmål
                         if other_qs:
-                            st.markdown("---")
                             st.markdown("### Andre spørsmål")
-                            st.caption("Disse spørsmålene er ikke prioritert for valgt rolle/parametere, men kan stilles ved behov")
-                            
                             for q in other_qs:
                                 q_id_str = str(q['id'])
-                                
                                 if q_id_str not in interview['responses'][phase]:
                                     interview['responses'][phase][q_id_str] = {'score': 0, 'notes': ''}
-                                
                                 resp = interview['responses'][phase][q_id_str]
                                 status = "✓" if resp['score'] > 0 else "○"
-                                score_display = f" - Nivå {resp['score']}" if resp['score'] > 0 else ""
-                                
-                                with st.expander(f"{status} {q['id']}. {q['title']}{score_display}", expanded=False):
+                                with st.expander(f"{status} {q['id']}. {q['title']}" + (f" - Nivå {resp['score']}" if resp['score'] > 0 else ""), expanded=False):
                                     st.markdown(f"**{q['question']}**")
-                                    
-                                    st.markdown("**Modenhetsskala:**")
                                     for level in q['scale']:
                                         st.write(f"- {level}")
-                                    
-                                    st.markdown("---")
-                                    
-                                    new_score = st.radio(
-                                        "Velg nivå:",
-                                        options=[0, 1, 2, 3, 4, 5],
-                                        index=resp['score'],
-                                        key=f"s_{phase}_{q['id']}",
-                                        horizontal=True,
-                                        format_func=lambda x: "Ikke vurdert" if x == 0 else f"Nivå {x}"
-                                    )
-                                    
-                                    new_notes = st.text_area(
-                                        "Notater:",
-                                        value=resp['notes'],
-                                        key=f"n_{phase}_{q['id']}",
-                                        placeholder="Begrunnelse, sitater, observasjoner...",
-                                        height=80
-                                    )
-                                    
+                                    new_score = st.radio("Nivå:", options=[0,1,2,3,4,5], index=resp['score'], key=f"s_{phase}_{q['id']}", horizontal=True, format_func=lambda x: "Ikke vurdert" if x == 0 else f"Nivå {x}")
+                                    new_notes = st.text_area("Notater:", value=resp['notes'], key=f"n_{phase}_{q['id']}", height=80)
                                     if st.button("Lagre", key=f"save_{phase}_{q['id']}"):
-                                        interview['responses'][phase][q_id_str] = {
-                                            'score': new_score,
-                                            'notes': new_notes
-                                        }
+                                        interview['responses'][phase][q_id_str] = {'score': new_score, 'notes': new_notes}
                                         persist_data()
-                                        st.success("Lagret!")
                                         st.rerun()
                         
-                        # Avslutt
-                        st.markdown("---")
                         col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("Avslutt intervju", use_container_width=True):
-                                del st.session_state['active_interview']
-                                st.success("Intervju avsluttet og lagret!")
-                                st.rerun()
-                        with col2:
-                            if st.button("Avbryt", use_container_width=True):
-                                del st.session_state['active_interview']
-                                st.rerun()
+                        if col1.button("Avslutt intervju", use_container_width=True):
+                            del st.session_state['active_interview']
+                            st.rerun()
+                        if col2.button("Avbryt", use_container_width=True):
+                            del st.session_state['active_interview']
+                            st.rerun()
     
-    # =========================================================================
     # TAB 4: RESULTATER
-    # =========================================================================
     with tab4:
         st.markdown("## Resultater og analyse")
-        
         if not data['initiatives']:
             st.warning("Ingen endringsinitiativ å vise")
         else:
@@ -1272,12 +963,9 @@ def main():
             selected_init_id = init_options[selected_init_name]
             initiative = data['initiatives'][selected_init_id]
             
-            # Filter på gevinst
             benefit_filter_options = {"Alle gevinster": "all"}
-            if initiative.get('benefits'):
-                for ben_id, ben in initiative['benefits'].items():
-                    benefit_filter_options[ben['name']] = ben_id
-            
+            for ben_id, ben in initiative.get('benefits', {}).items():
+                benefit_filter_options[ben['name']] = ben_id
             benefit_filter_name = st.selectbox("Filtrer på gevinst:", options=list(benefit_filter_options.keys()))
             benefit_filter = benefit_filter_options[benefit_filter_name]
             
@@ -1286,88 +974,53 @@ def main():
             if not stats or stats['total_interviews'] == 0:
                 st.info("Ingen intervjuer gjennomført ennå")
             else:
-                # Nøkkeltall
                 col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.markdown(f'<div class="metric-card"><div class="metric-label">Intervjuer</div><div class="metric-value">{stats["total_interviews"]}</div></div>', unsafe_allow_html=True)
-                with col2:
-                    color = get_score_color(stats['overall_avg'])
-                    st.markdown(f'<div class="metric-card"><div class="metric-label">Gjennomsnitt</div><div class="metric-value" style="color: {color}">{stats["overall_avg"]:.2f}</div></div>', unsafe_allow_html=True)
-                with col3:
-                    st.markdown(f'<div class="metric-card" style="border-left-color:{COLORS["success"]}"><div class="metric-label">Styrkeområder</div><div class="metric-value" style="color: {COLORS["success"]}">{len(stats["high_maturity"])}</div></div>', unsafe_allow_html=True)
-                with col4:
-                    st.markdown(f'<div class="metric-card" style="border-left-color:{COLORS["danger"]}"><div class="metric-label">Forbedringsområder</div><div class="metric-value" style="color: {COLORS["danger"]}">{len(stats["low_maturity"])}</div></div>', unsafe_allow_html=True)
+                col1.markdown(f'<div class="metric-card"><div class="metric-label">Intervjuer</div><div class="metric-value">{stats["total_interviews"]}</div></div>', unsafe_allow_html=True)
+                col2.markdown(f'<div class="metric-card"><div class="metric-label">Gjennomsnitt</div><div class="metric-value" style="color: {get_score_color(stats["overall_avg"])}">{stats["overall_avg"]:.2f}</div></div>', unsafe_allow_html=True)
+                col3.markdown(f'<div class="metric-card" style="border-left-color:{COLORS["success"]}"><div class="metric-label">Styrker</div><div class="metric-value" style="color: {COLORS["success"]}">{len(stats["high_maturity"])}</div></div>', unsafe_allow_html=True)
+                col4.markdown(f'<div class="metric-card" style="border-left-color:{COLORS["danger"]}"><div class="metric-label">Forbedring</div><div class="metric-value" style="color: {COLORS["danger"]}">{len(stats["low_maturity"])}</div></div>', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                
-                # Radardiagrammer side ved side
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("### Modenhet per fase")
                     if stats['phases']:
-                        radar = create_phase_radar(stats['phases'])
-                        if radar:
-                            st.plotly_chart(radar, use_container_width=True)
-                    else:
-                        st.info("Ingen fasedata tilgjengelig")
-                
+                        fig = create_phase_radar(stats['phases'])
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
                 with col2:
                     st.markdown("### Modenhet per parameter")
                     if stats['parameters']:
-                        param_radar = create_parameter_radar(stats['parameters'])
-                        if param_radar:
-                            st.plotly_chart(param_radar, use_container_width=True)
-                    else:
-                        st.info("Ingen parameterdata tilgjengelig")
+                        fig = create_parameter_radar(stats['parameters'])
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
                 
                 st.markdown("---")
-                
-                # DIAGRAMMER for styrker og svakheter
                 col1, col2 = st.columns(2)
-                
                 with col1:
-                    st.markdown("### Styrkeområder (score ≥ 4)")
+                    st.markdown("### Styrkeområder")
                     if stats['high_maturity']:
-                        strength_chart = create_strength_bar_chart(stats['high_maturity'])
-                        if strength_chart:
-                            st.plotly_chart(strength_chart, use_container_width=True)
-                        
-                        # Detaljliste under
-                        for item in stats['high_maturity'][:8]:
-                            st.markdown(f'<div class="strength-card"><strong>[{item["phase"]}]</strong> {item["title"]}: {item["score"]:.2f}</div>', unsafe_allow_html=True)
+                        fig = create_strength_bar_chart(stats['high_maturity'])
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
+                        for item in stats['high_maturity'][:5]:
+                            st.markdown(f'<div class="strength-card">[{item["phase"]}] {item["title"]}: {item["score"]:.2f}</div>', unsafe_allow_html=True)
                     else:
-                        st.info("Ingen områder med høy modenhet")
-                
+                        st.info("Ingen styrkeområder identifisert")
                 with col2:
-                    st.markdown("### Forbedringsområder (score < 3)")
+                    st.markdown("### Forbedringsområder")
                     if stats['low_maturity']:
-                        improvement_chart = create_improvement_bar_chart(stats['low_maturity'])
-                        if improvement_chart:
-                            st.plotly_chart(improvement_chart, use_container_width=True)
-                        
-                        for item in stats['low_maturity'][:8]:
-                            st.markdown(f'<div class="improvement-card"><strong>[{item["phase"]}]</strong> {item["title"]}: {item["score"]:.2f}</div>', unsafe_allow_html=True)
+                        fig = create_improvement_bar_chart(stats['low_maturity'])
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
+                        for item in stats['low_maturity'][:5]:
+                            st.markdown(f'<div class="improvement-card">[{item["phase"]}] {item["title"]}: {item["score"]:.2f}</div>', unsafe_allow_html=True)
                     else:
-                        st.markdown(f'<div class="success-box">Ingen kritiske forbedringsområder!</div>', unsafe_allow_html=True)
-                
-                # Parameterresultater
-                st.markdown("---")
-                st.markdown("### Resultater per parameter")
-                
-                for param_name, param_data in stats.get('parameters', {}).items():
-                    avg = param_data['avg']
-                    color = get_score_color(avg)
-                    
-                    with st.expander(f"{param_name} - Score: {avg:.2f} ({get_score_text(avg)})"):
-                        st.markdown(f"*{PARAMETERS[param_name]['description']}*")
-                        st.markdown(f"**Inkluderer spørsmål:** {', '.join(map(str, PARAMETERS[param_name]['questions']))}")
+                        st.success("Ingen kritiske forbedringsområder!")
     
-    # =========================================================================
     # TAB 5: RAPPORT
-    # =========================================================================
     with tab5:
         st.markdown("## Generer rapport")
-        
         if not data['initiatives']:
             st.warning("Ingen endringsinitiativ")
         else:
@@ -1375,113 +1028,51 @@ def main():
             selected_init_name = st.selectbox("Velg endringsinitiativ", options=list(init_options.keys()), key="rep_init")
             selected_init_id = init_options[selected_init_name]
             initiative = data['initiatives'][selected_init_id]
-            
             stats = calculate_stats(initiative)
             
             if not stats or stats['total_interviews'] == 0:
                 st.info("Gjennomfør minst ett intervju først")
             else:
                 st.markdown("### Eksportformat")
-                
                 col1, col2, col3 = st.columns(3)
                 
-                # CSV
                 with col1:
-                    st.markdown("#### CSV-data")
+                    st.markdown("#### CSV")
                     csv_data = []
                     for phase in stats['questions']:
                         for q_id, q_data in stats['questions'][phase].items():
-                            csv_data.append({
-                                'Fase': phase,
-                                'SpørsmålID': q_id,
-                                'Tittel': q_data['title'],
-                                'Gjennomsnitt': round(q_data['avg'], 2),
-                                'Min': q_data['min'],
-                                'Maks': q_data['max'],
-                                'AntallSvar': q_data['count']
-                            })
-                    
+                            csv_data.append({'Fase': phase, 'SpørsmålID': q_id, 'Tittel': q_data['title'], 'Gjennomsnitt': round(q_data['avg'], 2), 'AntallSvar': q_data['count']})
                     csv_df = pd.DataFrame(csv_data)
-                    csv_string = csv_df.to_csv(index=False, sep=';')
-                    
-                    st.download_button(
-                        "Last ned CSV",
-                        data=csv_string,
-                        file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
+                    st.download_button("Last ned CSV", data=csv_df.to_csv(index=False, sep=';'), file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
                 
-                # Word
                 with col2:
-                    st.markdown("#### Word-rapport")
-                    try:
-                        import docx
-                        docx_available = True
-                    except ImportError:
-                        docx_available = False
-                    
-                    if docx_available:
-                        if st.button("Generer Word", use_container_width=True):
-                            filepath, filename = generate_word_report(initiative, stats)
-                            if filepath and os.path.exists(filepath):
-                                with open(filepath, 'rb') as f:
-                                    st.download_button(
-                                        "Last ned Word-fil",
-                                        data=f.read(),
-                                        file_name=filename,
-                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                        use_container_width=True
-                                    )
-                            else:
-                                st.error("Kunne ikke generere Word-fil")
+                    st.markdown("#### Word")
+                    word_buffer = generate_word_report(initiative, stats)
+                    if word_buffer:
+                        st.download_button("Last ned Word", data=word_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
                     else:
-                        st.info("Installer python-docx for Word-eksport")
-                        st.code("pip install python-docx")
+                        st.warning("Installer python-docx")
                 
-                # PDF
                 with col3:
-                    st.markdown("#### PDF-rapport")
-                    st.info("Generer Word først, deretter konverter til PDF")
+                    st.markdown("#### PDF (HTML)")
+                    html_content = generate_pdf_report(initiative, stats)
+                    st.download_button("Last ned HTML/PDF", data=html_content, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.html", mime="text/html", use_container_width=True)
+                    st.caption("Åpne i nettleser og skriv ut som PDF")
                 
-                # Intervjuoversikt
                 st.markdown("---")
                 st.markdown("### Intervjuoversikt")
-                
                 interview_data = []
                 for iid, interview in initiative['interviews'].items():
                     info = interview['info']
-                    
-                    total_answered = 0
-                    total_score = 0
-                    for phase, responses in interview.get('responses', {}).items():
-                        for q_id, resp in responses.items():
-                            if resp.get('score', 0) > 0:
-                                total_answered += 1
-                                total_score += resp['score']
-                    
-                    avg_score = total_score / total_answered if total_answered > 0 else 0
-                    
-                    interview_data.append({
-                        'Dato': info.get('date', ''),
-                        'Intervjuobjekt': info.get('interviewee', ''),
-                        'Stilling': info.get('role', ''),
-                        'Gevinst': info.get('benefit_name', 'Generelt'),
-                        'Fase': info.get('phase', ''),
-                        'Besvarte': total_answered,
-                        'Snitt': round(avg_score, 2) if avg_score > 0 else '-'
-                    })
-                
+                    total_answered = sum(1 for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
+                    total_score = sum(resp['score'] for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
+                    avg = total_score / total_answered if total_answered > 0 else 0
+                    interview_data.append({'Dato': info.get('date', ''), 'Intervjuobjekt': info.get('interviewee', ''), 'Gevinst': info.get('benefit_name', 'Generelt'), 'Fase': info.get('phase', ''), 'Besvarte': total_answered, 'Snitt': round(avg, 2) if avg > 0 else '-'})
                 if interview_data:
                     st.dataframe(pd.DataFrame(interview_data), use_container_width=True)
     
-    # Footer
     st.markdown("---")
-    st.markdown(f"""
-    <div style="text-align: center; color: #666; font-size: 0.8rem;">
-        Modenhetsvurdering v5.1 | Bane NOR - Konsern økonomi og digital transformasjon
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center;color:#666;font-size:0.8rem;">Bane NOR - Konsern økonomi og digital transformasjon</p>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
