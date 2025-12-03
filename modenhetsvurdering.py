@@ -1,7 +1,48 @@
 """
 MODENHETSVURDERING - GEVINSTREALISERING
-Gjennomføres i samarbeid med konsern økonomi og digital transformasjon
+Bane NOR - Konsern økonomi og digital transformasjon
 """
+
+import subprocess
+import sys
+
+# Automatisk installasjon av nødvendige pakker
+def install_package(package_name):
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name, "-q"])
+        return True
+    except:
+        return False
+
+# Sjekk og installer python-docx
+try:
+    from docx import Document
+    DOCX_AVAILABLE = True
+except ImportError:
+    print("Installerer python-docx...")
+    if install_package("python-docx"):
+        try:
+            from docx import Document
+            DOCX_AVAILABLE = True
+        except:
+            DOCX_AVAILABLE = False
+    else:
+        DOCX_AVAILABLE = False
+
+# Sjekk og installer reportlab
+try:
+    from reportlab.lib.pagesizes import A4
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    print("Installerer reportlab...")
+    if install_package("reportlab"):
+        try:
+            from reportlab.lib.pagesizes import A4
+            REPORTLAB_AVAILABLE = True
+        except:
+            REPORTLAB_AVAILABLE = False
+    else:
+        REPORTLAB_AVAILABLE = False
 
 import streamlit as st
 import pandas as pd
@@ -19,7 +60,7 @@ from io import BytesIO
 # ============================================================================
 st.set_page_config(
     page_title="Modenhetsvurdering - Bane NOR",
-    page_icon=" ",
+    page_icon="🚂",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -40,6 +81,58 @@ COLORS = {
     'black': '#000000',
     'gray_light': '#F2FAFD',
     'gray': '#E8E8E8'
+}
+
+# ============================================================================
+# BANE NOR IKONER (SVG)
+# ============================================================================
+ICONS = {
+    # Tog-ikon for header
+    'train': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M98.51 77.81 44.51 77.81 44.51 70.6 85.51 70.6 85.51 68.08 44.51 68.14 44.51 52 30.85 52 30.85 96.33 44.49 96.33 44.49 80.27 98.49 80.27 98.49 96.33 112.12 96.33 112.12 52 98.51 52ZM42 93.82 33.4 93.82 33.4 54.54 42 54.54ZM101 54.54 109.61 54.54 109.61 93.82 101 93.82ZM22.08 65.3 24.54 65.3 24.54 83.06 22.08 83.06ZM120.91 65.3 120.91 83.06 118.45 83.06 118.45 65.3Z" fill="{color}"/></svg>''',
+    
+    # Planlegging - Dashboard/skjerm
+    'planning': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M82.75 36.66 82.75 105.2 121.46 105.2 121.46 36.66ZM118.96 102.66 85.25 102.66 85.25 90.07 119 90.07ZM118.96 87.53 85.25 87.53 85.25 39.16 119 39.16ZM106.63 44.26 97.63 44.26 97.63 41.76 106.63 41.76ZM102.1 101.26C104.652 101.26 106.72 99.19 106.72 96.64 106.72 94.09 104.65 92.02 102.1 92.02 99.55 92.02 97.48 94.09 97.48 96.64 97.5 99.19 99.56 101.23 102.1 101.23ZM102.1 94.53C103.27 94.52 104.23 95.46 104.24 96.63 104.25 97.8 103.31 98.76 102.14 98.77 100.97 98.78 100.01 97.84 100 96.67L100 96.62C100 95.46 100.94 94.51 102.1 94.5ZM21.58 97.72 47.29 97.72 47.29 102.56 41.64 102.56 41.64 105.06 55.44 105.06 55.44 102.56 49.79 102.56 49.79 97.72 75.49 97.72 75.49 63 21.58 63ZM24.08 65.5 73 65.5 73 95.22 24.08 95.22Z" fill="{color}"/></svg>''',
+    
+    # Gjennomføring - Bygninger/by
+    'execution': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M120.45 106.38 120.45 87 113.15 45 81.76 45 84.08 59 67.7 59 65.33 44.87 21.1 44.94 26.44 76.94 26.44 108.87 120.44 108.87 120.44 106.37ZM24.06 47.44 63.22 47.37 69.89 87 56.89 87 56.89 75.6 28.73 75.6ZM54.38 87 54.38 106.43 42.91 106.43 42.91 87 40.41 87 40.41 106.43 28.94 106.43 28.94 78.1 54.38 78.1ZM85.6 106.38 72.6 106.38 72.6 96.67 70.1 96.67 70.1 106.38 56.88 106.38 56.88 89.45 85.65 89.45ZM85.65 87 72.42 87 68.12 61.47 84.49 61.47 85.71 68.78ZM88 67.38 84.71 47.44 111 47.44 117.92 87 109.58 87 109.58 67.38ZM107.08 87 107.08 106.43 99.25 106.43 99.25 76.07 96.75 76.07 96.75 106.38 88.1 106.38 88.2 69.88 107.08 69.88ZM117.94 106.43 109.58 106.43 109.58 89.45 117.94 89.45Z" fill="{color}"/></svg>''',
+    
+    # Realisering - Sykkel/fremdrift
+    'realization': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M116.62 80.1C116.61 89.49 108.99 97.09 99.6 97.08 90.21 97.07 82.61 89.45 82.62 80.06 82.63 74.37 85.48 69.06 90.23 65.91L99 83.59 101.23 82.47 92.42 64.69C94.67 63.63 97.12 63.08 99.6 63.08L99.6 60.58C96.73 60.58 93.89 61.22 91.3 62.46L85.3 50.46 85 49.88 88.77 49.88C91.53 49.88 93.77 52.12 93.77 54.88L93.77 56.13 96.27 56.13 96.27 54.86C96.26 50.72 92.91 47.37 88.77 47.36L80.87 47.36 83.09 51.57 88.67 62.79 62.27 62.79 58 47.87 45.84 47.87 45.84 50.37 56.09 50.37 59.9 63.59 55.29 67.37C47.26 60.19 34.92 60.88 27.74 68.92 20.56 76.95 21.25 89.29 29.29 96.47 37.32 103.65 49.66 102.95 56.84 94.92 59.75 91.66 61.48 87.52 61.76 83.16L68.14 83.16 63 65.29 86.92 65.29C78.74 72.3 77.78 84.61 84.79 92.8 91.8 100.98 104.12 101.94 112.3 94.93 116.63 91.22 119.12 85.8 119.12 80.1ZM42.3 98.93C32.91 98.91 25.32 91.27 25.35 81.88 25.37 72.5 33 64.9 42.39 64.93 46.38 64.94 50.25 66.36 53.3 68.93L41.67 78.52C40.57 79.47 40.44 81.14 41.39 82.24 41.89 82.82 42.62 83.16 43.38 83.16L59.26 83.16C58.62 92.05 51.21 98.93 42.3 98.93ZM64.81 80.66 43.38 80.66C43.38 80.66 43.29 80.66 43.25 80.57 43.21 80.48 43.25 80.45 43.25 80.44L60.65 66.21Z" fill="{color}"/></svg>''',
+    
+    # Realisert - Beholder/tank ferdig
+    'realized': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M59.87 37.12C59.87 32.98 63.23 29.62 67.37 29.62L68.62 29.62 68.62 32.12 67.37 32.12C64.61 32.12 62.37 34.36 62.37 37.12 62.37 39.88 64.61 42.12 67.37 42.12L68.62 42.12 68.62 44.62 67.37 44.62C63.23 44.62 59.87 41.26 59.87 37.12ZM109.33 80.31C109.32 84.45 105.97 87.79 101.83 87.8L97.1 87.8 97.1 85.3 101.83 85.3C104.59 85.3 106.83 83.06 106.83 80.3 106.83 77.54 104.59 75.3 101.83 75.3L93.83 75.3 93.83 77.3C93.83 90.55 83.08 101.3 69.83 101.3 56.58 101.3 45.83 90.55 45.83 77.3L45.83 63.4 93.83 63.4 93.83 72.81 101.83 72.81C105.97 72.82 109.32 76.17 109.33 80.31ZM91.33 65.9 48.33 65.9 48.33 77.32C48.33 89.19 57.96 98.82 69.83 98.82 81.7 98.82 91.33 89.19 91.33 77.32ZM45.84 107.61 93.84 107.61 93.84 105.11 45.84 105.11ZM79.84 49.61C79.83 45.47 76.48 42.12 72.34 42.11L71 42.11 71 44.61 72.25 44.61C75.01 44.61 77.25 46.85 77.25 49.61 77.25 52.37 75.01 54.61 72.25 54.61L71 54.61 71 57.11 72.25 57.11C76.4 57.13 79.77 53.78 79.79 49.63L79.79 49.61Z" fill="{color}"/></svg>''',
+    
+    # Personer - Interessenter/roller
+    'people': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M103.8 110.17 101.3 110.17 101.3 95.53C101.29 87.58 94.84 81.13 86.89 81.12L57 81.12C49.03 81.11 42.56 87.56 42.55 95.53L42.55 107.69 84.2 107.69 84.2 110.19 40.06 110.19 40.06 95.54C40.07 86.19 47.65 78.62 57 78.63L86.89 78.63C96.22 78.64 103.78 86.2 103.8 95.53ZM50.85 55.91 50.37 55.54 50.37 54.93C50.37 52.56 53.19 50.04 54.49 49.01 54.73 40.41 61.09 33.22 69.59 31.93 71.32 31.62 73.08 31.62 74.81 31.93 83.29 33.25 89.63 40.42 89.89 49 91.18 50 94 52.55 94 54.92L94 55.56 93.48 55.94C93.23 56.11 91.65 57.12 86.78 57.94L86.78 58.63C86.76 66.82 80.11 73.46 71.92 73.45 63.67 73.4 57.02 66.7 57.02 58.45L57.02 57.8C52.5 57.06 51.08 56.09 50.85 55.91ZM84.28 58.24C80.21 58.67 76.12 58.87 72.03 58.84 67.86 58.88 63.69 58.67 59.55 58.2L59.55 58.49C59.51 65.36 65.05 70.96 71.92 71L71.92 71C78.75 71 84.28 65.47 84.28 58.64L84.28 58.59ZM53.06 54.24C54.69 54.89 59.68 56.32 72 56.32 84.34 56.32 89.52 54.88 91.27 54.21 90.38 52.8 89.23 51.58 87.87 50.61L87.36 50.23 87.36 49.42C87.34 44.3 84.76 39.53 80.48 36.72L80.48 45.1 78 45.1 78 35.41C76.85 34.93 75.64 34.59 74.4 34.41L74.33 34.41C73.94 34.33 73.55 34.28 73.16 34.25L73.16 49.31 70.66 49.31 70.66 34.31C70.42 34.31 70.18 34.37 69.98 34.41 68.48 34.63 67.03 35.07 65.67 35.73L65.67 45.13 63.17 45.13 63.17 37.23C59.3 40.1 57.02 44.62 57 49.44L57 50.26 56.49 50.63C55.12 51.6 53.95 52.84 53.06 54.26Z" fill="{color}"/></svg>''',
+    
+    # Milepæler/prosess
+    'milestones': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M51.65 69.24C42.96 69.16 35.86 76.14 35.78 84.83 35.71 93.14 42.11 100.07 50.4 100.66L50.4 112.66 52.9 112.66 52.9 100.66C61.57 100.05 68.09 92.52 67.48 83.86 66.89 75.57 59.96 69.17 51.65 69.24ZM51.65 98.24C44.34 98.24 38.41 92.31 38.41 85 38.41 77.69 44.34 71.76 51.65 71.76 58.96 71.76 64.89 77.69 64.89 85 64.87 92.3 58.95 98.21 51.65 98.22ZM60.24 85.31 57.74 85.31C57.73 82.24 55.25 79.76 52.18 79.75L52.18 77.25C56.62 77.26 60.22 80.85 60.24 85.29ZM87.79 44.88C87.8 36.19 80.76 29.13 72.07 29.12 63.38 29.11 56.32 36.15 56.31 44.84 56.3 53.05 62.6 59.89 70.79 60.55L70.79 112.67 73.29 112.67 73.29 60.55C81.47 59.9 87.77 53.08 87.79 44.88ZM72.05 58.12C64.74 58.12 58.81 52.19 58.81 44.88 58.81 37.57 64.74 31.64 72.05 31.64 79.36 31.64 85.29 37.57 85.29 44.88 85.28 52.19 79.36 58.11 72.05 58.12ZM80.64 45.18 78.14 45.18C78.13 42.11 75.65 39.63 72.58 39.62L72.58 37.12C77.03 37.13 80.63 40.73 80.64 45.18ZM93.47 60.35C84.78 60.27 77.68 67.25 77.6 75.94 77.53 84.25 83.93 91.18 92.22 91.77L92.22 112.67 94.72 112.67 94.72 91.77C103.39 91.16 109.91 83.63 109.3 74.97 108.71 66.68 101.78 60.28 93.47 60.35ZM93.47 89.35C86.16 89.35 80.23 83.42 80.23 76.11 80.23 68.8 86.16 62.87 93.47 62.87 100.78 62.87 106.71 68.8 106.71 76.11 106.69 83.41 100.77 89.32 93.47 89.33ZM102.06 76.42 99.56 76.42C99.57 73.34 97.08 70.85 94 70.84L94 68.34C98.45 68.35 102.05 71.95 102.06 76.4Z" fill="{color}"/></svg>''',
+    
+    # Intervju/samarbeid
+    'interview': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M112.79 92 112.79 47.17 28 47.17 28 112.29 112.75 112.29 112.75 109.79 72.1 109.79 72.1 49.67 110.29 49.67 110.29 92ZM69.6 109.79 30.54 109.79 30.54 49.67 69.6 49.67ZM38.9 38.23 37.21 36.4 38.12 35.55C42 32 42 32 42.34 31.62 42.68 31.24 43.51 30.47 48.93 25.37L49.77 24.57 50.63 25.36C56.08 30.36 57.49 31.59 58.16 32.2 58.83 32.81 58.85 32.81 61.35 35.2L62.56 36.34 60.84 38.16 59.64 37C57.18 34.68 57.18 34.68 56.5 34.08 55.82 33.48 54.5 32.35 49.8 28 45.16 32.37 44.45 33.08 44.09 33.42 43.73 33.76 43.69 33.82 39.82 37.42ZM79.63 28.3 78.42 27.16 80.14 25.34 81.34 26.48C83.8 28.8 83.8 28.8 84.48 29.4 85.16 30 86.48 31.13 91.18 35.48 95.82 31.11 96.53 30.4 96.89 30.06 97.25 29.72 97.29 29.66 101.16 26.06L102.08 25.21 103.78 27.04 102.86 27.89C99 31.47 99 31.47 98.64 31.84 98.28 32.21 97.47 33 92.05 38.09L91.21 38.89 90.35 38.1C84.9 33.1 83.49 31.87 82.82 31.26 82.15 30.65 82.13 30.65 79.63 28.3ZM91.1 68.64C94.88 68.64 97.94 65.58 97.94 61.8 97.94 58.02 94.88 54.96 91.1 54.96 87.32 54.96 84.26 58.02 84.26 61.8 84.27 65.58 87.32 68.63 91.1 68.64ZM91.1 57.46C93.5 57.46 95.44 59.4 95.44 61.8 95.44 64.2 93.5 66.14 91.1 66.14 88.7 66.14 86.76 64.2 86.76 61.8 86.77 59.41 88.71 57.47 91.1 57.46ZM97.73 104.1 97.73 82C97.73 78.34 94.76 75.37 91.1 75.37 87.44 75.37 84.47 78.34 84.47 82L84.47 104.1 82 104.1 82 82C82 76.96 86.09 72.87 91.13 72.87 96.17 72.87 100.26 76.96 100.26 82L100.26 104.1ZM49.31 68.64C53.09 68.64 56.15 65.58 56.15 61.8 56.15 58.02 53.09 54.96 49.31 54.96 45.53 54.96 42.47 58.02 42.47 61.8 42.47 65.58 45.53 68.64 49.31 68.64ZM49.31 57.46C51.71 57.44 53.66 59.37 53.68 61.77 53.7 64.17 51.77 66.12 49.37 66.14 46.97 66.16 45.02 64.23 45 61.83L45 61.8C45 59.41 46.92 57.48 49.31 57.46ZM42.68 104.1 40.18 104.1 40.18 81.32C40.18 76.83 44.45 72.89 49.31 72.89 54.17 72.89 58.44 76.83 58.44 81.32L58.44 104.1 55.94 104.1 55.94 81.32C55.94 78.52 53.1 75.39 49.31 75.39 45.52 75.39 42.68 78.52 42.68 81.32Z" fill="{color}"/></svg>''',
+    
+    # Dashboard/organisasjon
+    'dashboard': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M28.58 109.76 66.65 109.76 66.65 73.38 28.58 73.38ZM31.08 75.88 64.15 75.88 64.15 107.26 31.08 107.26ZM40.18 95.46 55.05 95.46 55.05 88 40.18 88ZM42.68 90.46 52.55 90.46 52.55 93 42.68 93ZM74.54 73.38 74.54 109.76 112.61 109.76 112.61 73.38ZM110.11 107.26 77 107.26 77 75.88 110.07 75.88ZM100 88 85.14 88 85.14 95.47 100 95.47ZM97.5 93 87.64 93 87.64 90.49 97.5 90.49ZM90.5 29.54 52.43 29.54 52.43 65.88 90.5 65.88ZM88 63.38 54.93 63.38 54.93 32 88 32ZM78.9 44.11 64 44.11 64 51.58 78.9 51.58ZM76.4 49.11 66.53 49.11 66.53 46.61 76.4 46.61Z" fill="{color}"/></svg>''',
+    
+    # Mål/target
+    'target': '''<svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><path d="M121.18 91.28 118.72 91.28C118.71 85.94 115.15 81.27 110 79.85L73 69.77 71.74 69.77 36 78.33C30.45 79.65 26.37 84.37 25.86 90.05L101.62 90.05 101.62 92.51 23.34 92.51 23.34 91.28C23.33 83.98 28.34 77.63 35.44 75.94L71.12 67.39 71.12 64C65.64 63.34 61.72 58.36 62.38 52.88 63.04 47.4 68.02 43.48 73.5 44.14 78.54 44.75 82.33 49.03 82.31 54.11L79.85 54.11C79.85 49.97 76.49 46.61 72.35 46.61 68.21 46.61 64.85 49.97 64.85 54.11 64.85 58.25 68.21 61.61 72.35 61.61L73.58 61.61 73.58 67.41 110.63 77.51C116.84 79.21 121.16 84.84 121.18 91.28Z" fill="{color}"/></svg>'''
+}
+
+def get_icon_svg(icon_name, color=None, size=24):
+    """Returner SVG-ikon med spesifisert farge og størrelse"""
+    if color is None:
+        color = COLORS['primary_dark']
+    if icon_name in ICONS:
+        svg = ICONS[icon_name].format(color=color)
+        return f'<div style="width:{size}px;height:{size}px;display:inline-block;vertical-align:middle;">{svg}</div>'
+    return ""
+
+# Fase-ikoner mapping
+PHASE_ICONS = {
+    "Planlegging": "planning",
+    "Gjennomføring": "execution",
+    "Realisering": "realization",
+    "Realisert": "realized"
 }
 
 # ============================================================================
@@ -1522,10 +1615,165 @@ def create_improvement_bar_chart(items, max_items=8):
     return fig
 
 # ============================================================================
+# RAPPORT-GENERERING - HTML (FUNGERER ALLTID)
+# ============================================================================
+def generate_html_report(initiative, stats):
+    """Generer komplett HTML-rapport - krever ingen eksterne pakker"""
+    
+    html = f"""<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modenhetsvurdering - {initiative['name']}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap');
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: 'Source Sans Pro', sans-serif; padding: 40px; max-width: 1000px; margin: 0 auto; color: #172141; line-height: 1.6; }}
+        h1 {{ color: #172141; text-align: center; margin-bottom: 5px; }}
+        h2 {{ color: #0053A6; margin: 30px 0 15px; border-bottom: 2px solid #64C8FA; padding-bottom: 5px; }}
+        h3 {{ color: #0053A6; margin: 20px 0 10px; }}
+        .subtitle {{ text-align: center; color: #0053A6; margin-bottom: 30px; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
+        th {{ background: #0053A6; color: white; padding: 10px; text-align: left; }}
+        td {{ padding: 8px 10px; border-bottom: 1px solid #E8E8E8; }}
+        tr:nth-child(even) {{ background: #F2FAFD; }}
+        .summary-table td:first-child {{ background: #F2FAFD; font-weight: 600; width: 200px; }}
+        .strength {{ color: #35DE6D; font-weight: 600; }}
+        .improvement {{ color: #FF6B6B; font-weight: 600; }}
+        .score-high {{ background: #DDFAE2; padding: 2px 8px; border-radius: 4px; }}
+        .score-low {{ background: rgba(255, 107, 107, 0.15); padding: 2px 8px; border-radius: 4px; }}
+        .item {{ padding: 8px 12px; margin: 5px 0; border-radius: 6px; }}
+        .item-strength {{ background: linear-gradient(135deg, #DDFAE2 0%, #F2FAFD 100%); border-left: 4px solid #35DE6D; }}
+        .item-improvement {{ background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, #F2FAFD 100%); border-left: 4px solid #FF6B6B; }}
+        .comment-box {{ background: #F2FAFD; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #64C8FA; }}
+        .footer {{ text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E8E8E8; color: #666; }}
+        @media print {{ body {{ padding: 20px; }} h2 {{ page-break-before: auto; }} }}
+    </style>
+</head>
+<body>
+    <h1>Modenhetsvurdering - Gevinstrealisering</h1>
+    <p class="subtitle">Bane NOR - Konsern økonomi og digital transformasjon</p>
+    
+    <h2>1. Sammendrag</h2>
+    <table class="summary-table">
+        <tr><td>Endringsinitiativ</td><td>{initiative['name']}</td></tr>
+        <tr><td>Beskrivelse</td><td>{initiative.get('description', '-')}</td></tr>
+        <tr><td>Rapportdato</td><td>{datetime.now().strftime('%d.%m.%Y')}</td></tr>
+        <tr><td>Antall intervjuer</td><td>{stats['total_interviews']}</td></tr>
+        <tr><td>Samlet modenhet</td><td><strong>{stats['overall_avg']:.2f}</strong> ({get_score_text(stats['overall_avg'])})</td></tr>
+    </table>
+"""
+    
+    # Modenhet per fase
+    if stats['phases']:
+        html += """
+    <h2>2. Modenhet per fase</h2>
+    <table>
+        <tr><th>Fase</th><th>Gjennomsnitt</th><th>Min</th><th>Maks</th></tr>
+"""
+        for phase, data in stats['phases'].items():
+            html += f"        <tr><td>{phase}</td><td><strong>{data['avg']:.2f}</strong></td><td>{data['min']:.2f}</td><td>{data['max']:.2f}</td></tr>\n"
+        html += "    </table>\n"
+    
+    # Styrkeområder
+    if stats['high_maturity']:
+        html += """
+    <h2>3. Styrkeområder (score ≥ 4)</h2>
+"""
+        for item in stats['high_maturity'][:15]:
+            html += f'    <div class="item item-strength"><strong>[{item["phase"]}]</strong> {item["title"]}: <span class="score-high">{item["score"]:.2f}</span></div>\n'
+    
+    # Forbedringsområder
+    if stats['low_maturity']:
+        html += """
+    <h2>4. Forbedringsområder (score &lt; 3)</h2>
+"""
+        for item in stats['low_maturity'][:15]:
+            html += f'    <div class="item item-improvement"><strong>[{item["phase"]}]</strong> {item["title"]}: <span class="score-low">{item["score"]:.2f}</span></div>\n'
+    
+    # Parameterresultater
+    if stats['parameters']:
+        html += """
+    <h2>5. Resultater per parameter</h2>
+    <table>
+        <tr><th>Parameter</th><th>Score</th><th>Beskrivelse</th></tr>
+"""
+        for name, data in stats['parameters'].items():
+            html += f"        <tr><td>{name}</td><td><strong>{data['avg']:.2f}</strong></td><td>{data['description']}</td></tr>\n"
+        html += "    </table>\n"
+    
+    # Detaljerte resultater per spørsmål
+    html += """
+    <h2>6. Detaljerte resultater per spørsmål</h2>
+"""
+    for phase in PHASES:
+        if phase in stats['questions'] and stats['questions'][phase]:
+            html += f"""
+    <h3>{phase}</h3>
+    <table>
+        <tr><th>ID</th><th>Spørsmål</th><th>Score</th><th>Antall</th></tr>
+"""
+            for q_id, q_data in sorted(stats['questions'][phase].items()):
+                html += f"        <tr><td>{q_id}</td><td>{q_data['title']}</td><td><strong>{q_data['avg']:.2f}</strong></td><td>{q_data['count']}</td></tr>\n"
+            html += "    </table>\n"
+    
+    # Intervjuoversikt
+    html += """
+    <h2>7. Intervjuoversikt</h2>
+    <table>
+        <tr><th>Dato</th><th>Intervjuobjekt</th><th>Stilling</th><th>Gevinst</th><th>Fase</th><th>Snitt</th></tr>
+"""
+    for interview in initiative.get('interviews', {}).values():
+        info = interview['info']
+        total_answered = sum(1 for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
+        total_score = sum(resp['score'] for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
+        avg = total_score / total_answered if total_answered > 0 else 0
+        html += f"        <tr><td>{info.get('date', '')}</td><td>{info.get('interviewee', '')}</td><td>{info.get('role', '')}</td><td>{info.get('benefit_name', 'Generelt')}</td><td>{info.get('phase', '')}</td><td>{avg:.2f if avg > 0 else '-'}</td></tr>\n"
+    html += "    </table>\n"
+    
+    # Kommentarer fra intervjuer
+    html += """
+    <h2>8. Kommentarer fra intervjuer</h2>
+"""
+    for iid, interview in initiative.get('interviews', {}).items():
+        info = interview['info']
+        html += f'    <h3>{info.get("interviewee", "Ukjent")} - {info.get("date", "")}</h3>\n'
+        html += f'    <p><em>Gevinst: {info.get("benefit_name", "Generelt")} | Fase: {info.get("phase", "")} | Stilling: {info.get("role", "")}</em></p>\n'
+        
+        has_comments = False
+        for phase, responses in interview.get('responses', {}).items():
+            for q_id, resp in responses.items():
+                if resp.get('notes', '').strip():
+                    has_comments = True
+                    q_title = ""
+                    for q in questions_data.get(phase, []):
+                        if str(q['id']) == str(q_id):
+                            q_title = q['title']
+                            break
+                    html += f'    <div class="comment-box"><strong>[{phase}] {q_title}:</strong><br>{resp["notes"]}</div>\n'
+        
+        if not has_comments:
+            html += '    <p><em>Ingen kommentarer registrert.</em></p>\n'
+    
+    # Footer
+    html += f"""
+    <div class="footer">
+        Generert {datetime.now().strftime('%d.%m.%Y %H:%M')} | Bane NOR - Konsern økonomi og digital transformasjon
+    </div>
+</body>
+</html>
+"""
+    return html
+
+# ============================================================================
 # RAPPORT-GENERERING - WORD
 # ============================================================================
 def generate_word_report(initiative, stats):
     """Generer komplett Word-rapport med alle detaljer"""
+    if not DOCX_AVAILABLE:
+        st.error("python-docx er ikke installert. Kjør: pip install python-docx")
+        return None
     try:
         from docx import Document
         from docx.shared import Pt, Inches, RGBColor
@@ -1706,6 +1954,9 @@ def generate_word_report(initiative, stats):
 # ============================================================================
 def generate_pdf_report(initiative, stats):
     """Generer komplett PDF-rapport"""
+    if not REPORTLAB_AVAILABLE:
+        st.error("reportlab er ikke installert. Kjør: pip install reportlab")
+        return None
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -1870,9 +2121,18 @@ def generate_pdf_report(initiative, stats):
 def main():
     data = get_data()
     
-    # Header
-    st.markdown('<h1 class="main-header">Modenhetsvurdering</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Bane NOR - Konsern økonomi og digital transformasjon</p>', unsafe_allow_html=True)
+    # Header med tog-ikon
+    train_icon = get_icon_svg('train', COLORS['primary'], 40)
+    st.markdown(f'''
+    <div style="text-align:center;margin-bottom:1.5rem;">
+        <div style="display:flex;justify-content:center;align-items:center;gap:15px;">
+            {train_icon}
+            <h1 style="margin:0;color:{COLORS['primary_dark']};font-size:2rem;font-weight:700;">Modenhetsvurdering</h1>
+            {train_icon}
+        </div>
+        <p style="color:{COLORS['primary']};font-size:0.95rem;margin-top:0.3rem;">Bane NOR - Konsern økonomi og digital transformasjon</p>
+    </div>
+    ''', unsafe_allow_html=True)
     
     # Navigasjon
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Om vurderingen", "Endringsinitiativ", "Intervju", "Resultater", "Rapport"])
@@ -1880,18 +2140,38 @@ def main():
     # TAB 1: OM VURDERINGEN
     with tab1:
         st.markdown(HENSIKT_TEKST)
+        
+        # Vis faser med ikoner
+        st.markdown("---")
+        st.markdown("### Faser i gevinstlivssyklusen")
+        phase_cols = st.columns(4)
+        for i, phase in enumerate(PHASES):
+            with phase_cols[i]:
+                icon_name = PHASE_ICONS.get(phase, 'planning')
+                icon = get_icon_svg(icon_name, COLORS['primary'], 48)
+                st.markdown(f'''<div style="text-align:center;padding:15px;background:{COLORS['gray_light']};border-radius:8px;border-top:4px solid {COLORS['primary']};">
+                    {icon}
+                    <p style="margin:10px 0 0 0;font-weight:600;color:{COLORS['primary_dark']};">{phase}</p>
+                </div>''', unsafe_allow_html=True)
+        
         st.markdown("---")
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("### Tilgjengelige roller")
+            people_icon = get_icon_svg('people', COLORS['primary'], 28)
+            st.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;">{people_icon}<span style="font-size:1.2rem;font-weight:700;color:{COLORS["primary_dark"]};">Tilgjengelige roller</span></div>', unsafe_allow_html=True)
             for role_name, role_data in ROLES.items():
-                st.markdown(f"**{role_name}**")
-                st.caption(role_data['description'])
+                st.markdown(f'''<div style="padding:8px 12px;background:{COLORS['gray_light']};border-radius:6px;margin:5px 0;border-left:3px solid {COLORS['primary_light']};">
+                    <strong>{role_name}</strong><br>
+                    <small style="color:#666;">{role_data['description']}</small>
+                </div>''', unsafe_allow_html=True)
         with col2:
-            st.markdown("### Tilgjengelige parametere")
+            dashboard_icon = get_icon_svg('dashboard', COLORS['primary'], 28)
+            st.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;">{dashboard_icon}<span style="font-size:1.2rem;font-weight:700;color:{COLORS["primary_dark"]};">Tilgjengelige parametere</span></div>', unsafe_allow_html=True)
             for param_name, param_data in PARAMETERS.items():
-                st.markdown(f"**{param_name}**")
-                st.caption(param_data['description'])
+                st.markdown(f'''<div style="padding:8px 12px;background:{COLORS['gray_light']};border-radius:6px;margin:5px 0;border-left:3px solid {COLORS['primary_light']};">
+                    <strong>{param_name}</strong><br>
+                    <small style="color:#666;">{param_data['description']}</small>
+                </div>''', unsafe_allow_html=True)
     
     # TAB 2: ENDRINGSINITIATIV
     with tab2:
@@ -1965,6 +2245,12 @@ def main():
                     selected_benefit_name = st.selectbox("Gevinst", options=list(benefit_options.keys()))
                     selected_benefit_id = benefit_options[selected_benefit_name]
                     selected_phase = st.selectbox("Fase", options=PHASES)
+                    
+                    # Vis fase-ikon
+                    phase_icon_name = PHASE_ICONS.get(selected_phase, 'planning')
+                    phase_icon = get_icon_svg(phase_icon_name, COLORS['primary'], 32)
+                    st.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin:5px 0 15px 0;">{phase_icon}<span style="color:{COLORS["primary"]};font-weight:600;">{selected_phase}</span></div>', unsafe_allow_html=True)
+                    
                     focus_mode = st.radio("Fokusmodus", options=["Rollebasert", "Parameterbasert", "Alle spørsmål"], horizontal=True)
                     
                     selected_role = None
@@ -2108,6 +2394,16 @@ def main():
                 with col1:
                     st.markdown("### Modenhet per fase")
                     if stats['phases']:
+                        # Vis fase-oversikt med ikoner
+                        for phase_name, phase_data in stats['phases'].items():
+                            icon_name = PHASE_ICONS.get(phase_name, 'planning')
+                            icon = get_icon_svg(icon_name, get_score_color(phase_data['avg']), 24)
+                            st.markdown(f'''<div style="display:flex;align-items:center;gap:10px;padding:8px;background:{COLORS['gray_light']};border-radius:6px;margin:4px 0;">
+                                {icon}
+                                <span style="flex:1;font-weight:600;">{phase_name}</span>
+                                <span style="color:{get_score_color(phase_data['avg'])};font-weight:700;">{phase_data['avg']:.2f}</span>
+                            </div>''', unsafe_allow_html=True)
+                        st.markdown("")
                         fig = create_phase_radar(stats['phases'])
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
@@ -2121,23 +2417,27 @@ def main():
                 st.markdown("---")
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown("### Styrkeområder")
+                    target_icon = get_icon_svg('target', COLORS['success'], 28)
+                    st.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">{target_icon}<span style="font-size:1.3rem;font-weight:700;color:{COLORS["primary_dark"]};">Styrkeområder</span></div>', unsafe_allow_html=True)
                     if stats['high_maturity']:
                         fig = create_strength_bar_chart(stats['high_maturity'])
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
                         for item in stats['high_maturity'][:5]:
-                            st.markdown(f'<div class="strength-card">[{item["phase"]}] {item["title"]}: {item["score"]:.2f}</div>', unsafe_allow_html=True)
+                            phase_icon = get_icon_svg(PHASE_ICONS.get(item['phase'], 'planning'), COLORS['success'], 18)
+                            st.markdown(f'<div class="strength-card"><div style="display:flex;align-items:center;gap:8px;">{phase_icon}<span>[{item["phase"]}] {item["title"]}: <strong>{item["score"]:.2f}</strong></span></div></div>', unsafe_allow_html=True)
                     else:
                         st.info("Ingen styrkeområder identifisert")
                 with col2:
-                    st.markdown("### Forbedringsområder")
+                    milestone_icon = get_icon_svg('milestones', COLORS['danger'], 28)
+                    st.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">{milestone_icon}<span style="font-size:1.3rem;font-weight:700;color:{COLORS["primary_dark"]};">Forbedringsområder</span></div>', unsafe_allow_html=True)
                     if stats['low_maturity']:
                         fig = create_improvement_bar_chart(stats['low_maturity'])
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
                         for item in stats['low_maturity'][:5]:
-                            st.markdown(f'<div class="improvement-card">[{item["phase"]}] {item["title"]}: {item["score"]:.2f}</div>', unsafe_allow_html=True)
+                            phase_icon = get_icon_svg(PHASE_ICONS.get(item['phase'], 'planning'), COLORS['danger'], 18)
+                            st.markdown(f'<div class="improvement-card"><div style="display:flex;align-items:center;gap:8px;">{phase_icon}<span>[{item["phase"]}] {item["title"]}: <strong>{item["score"]:.2f}</strong></span></div></div>', unsafe_allow_html=True)
                     else:
                         st.success("Ingen kritiske forbedringsområder!")
     
@@ -2172,19 +2472,30 @@ def main():
                 
                 with col2:
                     st.markdown("#### Word")
-                    word_buffer = generate_word_report(initiative, stats)
-                    if word_buffer:
-                        st.download_button("Last ned Word", data=word_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
+                    if DOCX_AVAILABLE:
+                        word_buffer = generate_word_report(initiative, stats)
+                        if word_buffer:
+                            st.download_button("Last ned Word", data=word_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
                     else:
-                        st.error("Kunne ikke generere Word-rapport")
+                        st.warning("Installerer pakke... Start appen på nytt.")
+                        st.code("pip install python-docx", language="bash")
                 
                 with col3:
                     st.markdown("#### PDF")
-                    pdf_buffer = generate_pdf_report(initiative, stats)
-                    if pdf_buffer:
-                        st.download_button("Last ned PDF", data=pdf_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
+                    if REPORTLAB_AVAILABLE:
+                        pdf_buffer = generate_pdf_report(initiative, stats)
+                        if pdf_buffer:
+                            st.download_button("Last ned PDF", data=pdf_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
                     else:
-                        st.error("Kunne ikke generere PDF-rapport")
+                        st.warning("Installerer pakke... Start appen på nytt.")
+                        st.code("pip install reportlab", language="bash")
+                
+                # HTML fallback som alltid fungerer
+                st.markdown("---")
+                st.markdown("#### HTML-rapport (fungerer alltid)")
+                html_report = generate_html_report(initiative, stats)
+                st.download_button("Last ned HTML", data=html_report, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.html", mime="text/html", use_container_width=True)
+                st.caption("HTML kan åpnes i nettleser og skrives ut som PDF (Ctrl+P)")
                 
                 st.markdown("---")
                 st.markdown("### Intervjuoversikt")
@@ -2199,7 +2510,14 @@ def main():
                     st.dataframe(pd.DataFrame(interview_data), use_container_width=True)
     
     st.markdown("---")
-    st.markdown('<p style="text-align:center;color:#666;font-size:0.8rem;">Bane NOR - Konsern økonomi og digital transformasjon</p>', unsafe_allow_html=True)
+    footer_icon = get_icon_svg('train', COLORS['primary'], 20)
+    st.markdown(f'''<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;">
+        <div style="display:flex;justify-content:center;align-items:center;gap:8px;">
+            {footer_icon}
+            <span>Bane NOR - Konsern økonomi og digital transformasjon</span>
+            {footer_icon}
+        </div>
+    </div>''', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
