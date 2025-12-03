@@ -1,6 +1,6 @@
 """
 MODENHETSVURDERING - GEVINSTREALISERING
-Bane NOR - Konsern økonomi og digital transformasjon
+Gjennomføres i samarbeid med konsern økonomi og digital transformasjon
 """
 
 import subprocess
