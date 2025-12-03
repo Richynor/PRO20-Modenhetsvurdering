@@ -6,7 +6,6 @@ Bane NOR - Konsern økonomi og digital transformasjon
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 import numpy as np
 from datetime import datetime
 import pickle
@@ -25,7 +24,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-DATA_FILE = "modenhet_data.pkl"
+DATA_FILE = "modenhet_data_v5.pkl"
 
 # ============================================================================
 # BANE NOR FARGEPALETT
@@ -187,202 +186,1122 @@ PARAMETERS = {
 }
 
 # ============================================================================
-# KOMPLETT SPØRSMÅLSSETT - ALLE 23 SPØRSMÅL PER FASE
+# KOMPLETT SPØRSMÅLSSETT - ALLE 23 SPØRSMÅL PER FASE (ORIGINALE FULLSTENDIGE)
 # ============================================================================
 PHASES = ["Planlegging", "Gjennomføring", "Realisering", "Realisert"]
 
 questions_data = {
     "Planlegging": [
-        {"id": 1, "title": "Bruk av tidligere læring og gevinstdata", "question": "Hvordan anvendes erfaringer og læring fra tidligere prosjekter og gevinstarbeid i planleggingen av nye gevinster?",
-         "scale": ["Nivå 1: Ingen læring fra tidligere arbeid anvendt.", "Nivå 2: Enkelte erfaringer omtalt, men ikke strukturert brukt.", "Nivå 3: Læring inkludert i planlegging for enkelte områder.", "Nivå 4: Systematisk bruk av tidligere gevinstdata i planlegging og estimering.", "Nivå 5: Kontinuerlig læring integrert i planleggingsprosessen og gevinststrategien."]},
-        {"id": 2, "title": "Strategisk retning og gevinstforståelse", "question": "Hvilke gevinster arbeider dere med, og hvorfor er de viktige for organisasjonens strategiske mål?",
-         "scale": ["Nivå 1: Gevinster er vagt definert, uten tydelig kobling til strategi.", "Nivå 2: Gevinster er identifisert, men mangler klare kriterier og prioritering.", "Nivå 3: Gevinster er dokumentert og delvis knyttet til strategiske mål, men grunnlaget har usikkerhet.", "Nivå 4: Gevinster er tydelig koblet til strategiske mål med konkrete måltall.", "Nivå 5: Gevinster er fullt integrert i styringssystemet og brukes i beslutninger."]},
-        {"id": 3, "title": "Gevinstkart og visualisering", "question": "Er gevinstene synliggjort i gevinstkartet, med tydelig sammenheng mellom tiltak, effekter og mål?",
-         "scale": ["Nivå 1: Gevinstkart finnes ikke eller er utdatert.", "Nivå 2: Et foreløpig gevinstkart eksisterer, men dekker ikke hele området.", "Nivå 3: Kartet inkluderer hovedgevinster, men mangler validering og detaljer.", "Nivå 4: Kartet er brukt aktivt i planlegging og oppfølging.", "Nivå 5: Gevinstkartet oppdateres kontinuerlig og er integrert i styringsdialoger."]},
-        {"id": 4, "title": "Strategisk kobling og KPI-er", "question": "Er gevinstene tydelig knyttet til strategiske mål og eksisterende KPI-er?",
-         "scale": ["Nivå 1: Ingen kobling mellom gevinster og strategi eller KPI-er.", "Nivå 2: Kobling er antatt, men ikke dokumentert.", "Nivå 3: Kobling er etablert for enkelte KPI-er, men ikke konsistent.", "Nivå 4: Tydelig kobling mellom gevinster og relevante KPI-er.", "Nivå 5: Koblingen følges opp i styringssystem og rapportering."]},
-        {"id": 5, "title": "Avgrensning av programgevinst", "question": "Er det tydelig avklart hvilke effekter som stammer fra programmet versus andre tiltak eller økte rammer?",
-         "scale": ["Nivå 1: Ingen skille mellom program- og eksterne effekter.", "Nivå 2: Delvis omtalt, men uklart hva som er innenfor programmet.", "Nivå 3: Avgrensning er gjort i plan, men ikke dokumentert grundig.", "Nivå 4: Avgrensning er dokumentert og anvendt i beregninger.", "Nivå 5: Effektisolering er standard praksis og brukes systematisk."]},
-        {"id": 6, "title": "Nullpunkter og estimater", "question": "Er nullpunkter og estimater etablert, testet og dokumentert på en konsistent og troverdig måte?",
-         "scale": ["Nivå 1: Nullpunkter mangler eller bygger på uprøvde antagelser.", "Nivå 2: Enkelte nullpunkter finnes, men uten felles metode.", "Nivå 3: Nullpunkter og estimater er definert, men med høy usikkerhet.", "Nivå 4: Nullpunkter og estimater er basert på testede data og validerte metoder.", "Nivå 5: Nullpunkter og estimater kvalitetssikres jevnlig og brukes aktivt til læring."]},
-        {"id": 7, "title": "Hypotesetesting og datagrunnlag", "question": "Finnes formell prosess for hypotesetesting på representative caser?",
-         "scale": ["Nivå 1: Ikke etablert/uklart; ingen dokumenterte praksiser.", "Nivå 2: Delvis definert; uformell praksis uten forankring/validering.", "Nivå 3: Etablert for deler av området; variabel kvalitet.", "Nivå 4: Godt forankret og systematisk anvendt; måles og følges opp.", "Nivå 5: Fullt integrert i styring; kontinuerlig forbedring og læring."]},
-        {"id": 8, "title": "Interessentengasjement", "question": "Ble relevante interessenter involvert i utarbeidelsen av gevinstgrunnlag?",
-         "scale": ["Nivå 1: Ingen involvering av interessenter.", "Nivå 2: Begrenset og ustrukturert involvering.", "Nivå 3: Bred deltakelse, men uten systematisk prosess.", "Nivå 4: Systematisk og koordinert involvering med klar rollefordeling.", "Nivå 5: Kontinuerlig engasjement med dokumentert medvirkning."]},
-        {"id": 9, "title": "Gevinstforutsetninger", "question": "Er alle vesentlige forutsetninger ivaretatt for å muliggjøre gevinstrealisering?",
-         "scale": ["Nivå 1: Ingen kartlegging av gevinstforutsetninger.", "Nivå 2: Noen forutsetninger er identifisert, men ikke systematisk dokumentert.", "Nivå 3: Hovedforutsetninger er dokumentert, men uten klar eierskap.", "Nivå 4: Alle kritiske forutsetninger er kartlagt med tildelt ansvar.", "Nivå 5: Gevinstforutsetninger er integrert i risikostyring og oppfølges kontinuerlig."]},
-        {"id": 10, "title": "Prinsipielle og vilkårsmessige kriterier", "question": "Er forutsetninger og kriterier som påvirker gevinstene tydelig definert og dokumentert?",
-         "scale": ["Nivå 1: Ingen kriterier dokumentert.", "Nivå 2: Kriterier er beskrevet uformelt.", "Nivå 3: Kriterier dokumentert i deler av planverket.", "Nivå 4: Vesentlige kriterier er analysert og håndtert i gevinstrealiseringsplanen.", "Nivå 5: Kriterier overvåkes, følges opp og inngår i risikostyringen."]},
-        {"id": 11, "title": "Enighet om nullpunkter/estimater", "question": "Er det oppnådd enighet blant nøkkelinteressenter om nullpunkter og estimater?",
-         "scale": ["Nivå 1: Ingen enighet eller dokumentert praksis.", "Nivå 2: Delvis enighet, men ikke formalisert.", "Nivå 3: Enighet for hovedestimater, men med reservasjoner.", "Nivå 4: Full enighet dokumentert og forankret.", "Nivå 5: Kontinuerlig dialog og justering av estimater med interessentene."]},
-        {"id": 12, "title": "Disponering av kostnads- og tidsbesparelser", "question": "Hvordan er kostnads- og tidsbesparelser planlagt disponert mellom prissatte og ikke-prissatte gevinster?",
-         "scale": ["Nivå 1: Ingen plan for disponering eller måling av besparelser.", "Nivå 2: Delvis oversikt, men ikke dokumentert eller fulgt opp.", "Nivå 3: Plan finnes for enkelte områder, men uten systematikk.", "Nivå 4: Disponering og effekter dokumentert og målt.", "Nivå 5: Frigjorte ressurser disponeres strategisk og måles som del av gevinstrealiseringen."]},
-        {"id": 13, "title": "Måling av effektivitet og produktivitet", "question": "Hvordan måles økt effektivitet og produktivitet som følge av besparelser?",
-         "scale": ["Nivå 1: Ingen måling av effektivitet eller produktivitet.", "Nivå 2: Enkelte målinger, men ikke systematisk.", "Nivå 3: Måling for enkelte gevinster, men begrenset fokus på bærekraft.", "Nivå 4: Systematisk måling og vurdering av om gevinster opprettholdes over tid.", "Nivå 5: Måling integrert i gevinstoppfølgingen, bærekraftige gevinster sikres."]},
-        {"id": 14, "title": "Operasjonell risiko og ulemper", "question": "Er mulige negative konsekvenser eller ulemper identifisert og håndtert?",
-         "scale": ["Nivå 1: Negative effekter ikke vurdert.", "Nivå 2: Kjent, men ikke håndtert.", "Nivå 3: Beskrevet, men ikke fulgt opp systematisk.", "Nivå 4: Håndtert og overvåket med tilpasning til ulike scenarier.", "Nivå 5: Systematisk vurdert og del av gevinstdialogen med kontinuerlig justering."]},
-        {"id": 15, "title": "Balanse mellom gevinster og ulemper", "question": "Hvordan sikres det at balansen mellom gevinster og ulemper vurderes?",
-         "scale": ["Nivå 1: Ingen vurdering av balanse.", "Nivå 2: Diskuteres uformelt.", "Nivå 3: Del av enkelte oppfølgingsmøter.", "Nivå 4: Systematisk vurdert i gevinststyring.", "Nivå 5: Inngår som fast punkt i styrings- og gevinstdialoger."]},
-        {"id": 16, "title": "Dokumentasjon og gevinstrealiseringsplan", "question": "Er det utarbeidet en forankret gevinstrealiseringsplan?",
-         "scale": ["Nivå 1: Ingen formell gevinstrealiseringsplan.", "Nivå 2: Utkast til plan finnes, men er ufullstendig.", "Nivå 3: Plan er etablert, men ikke validert eller periodisert.", "Nivå 4: Planen er forankret, oppdatert og koblet til gevinstkartet.", "Nivå 5: Planen brukes aktivt som styringsdokument med revisjon."]},
-        {"id": 17, "title": "Gevinstrealiseringsplan som operativ handlingsplan", "question": "Hvordan sikres det at gevinstrealiseringsplanen fungerer som en operativ handlingsplan?",
-         "scale": ["Nivå 1: Planen brukes ikke som operativt styringsverktøy.", "Nivå 2: Plan finnes, men uten operativ oppfølging.", "Nivå 3: Planen følges delvis opp i linjen.", "Nivå 4: Planen brukes aktivt som handlingsplan og styringsverktøy.", "Nivå 5: Gevinstplanen er fullt operativt integrert i linjens handlingsplaner."]},
-        {"id": 18, "title": "Endringsberedskap og operativ mottaksevne", "question": "Er organisasjonen forberedt på å ta imot endringer fra programmet?",
-         "scale": ["Nivå 1: Ingen plan for endringsberedskap.", "Nivå 2: Kapasitet vurderes uformelt, men ikke håndtert.", "Nivå 3: Endringskapasitet omtales, men uten konkrete tiltak.", "Nivå 4: Tilfredsstillende beredskap etablert og koordinert med linjen.", "Nivå 5: Endringskapasitet er strukturert, overvåket og integrert i styring."]},
-        {"id": 19, "title": "Kommunikasjon og forankring", "question": "Er gevinstgrunnlag, roller og forventninger godt kommunisert?",
-         "scale": ["Nivå 1: Ingen felles forståelse eller kommunikasjon.", "Nivå 2: Informasjon deles sporadisk.", "Nivå 3: Kommunikasjon er planlagt, men ikke systematisk målt.", "Nivå 4: Kommunikasjon er systematisk og forankret i organisasjonen.", "Nivå 5: Forankring skjer løpende som del av styringsdialog."]},
-        {"id": 20, "title": "Eierskap og ansvar", "question": "Er ansvar og roller tydelig definert for å sikre gjennomføring og gevinstuttak?",
-         "scale": ["Nivå 1: Ansvar er uklart eller mangler.", "Nivå 2: Ansvar er delvis definert, men ikke praktisert.", "Nivå 3: Ansvar er kjent, men samhandling varierer.", "Nivå 4: Roller og ansvar fungerer godt i praksis.", "Nivå 5: Sterkt eierskap og kultur for ansvarliggjøring."]},
-        {"id": 21, "title": "Periodisering og forankring", "question": "Er gevinstrealiseringsplanen periodisert, validert og godkjent?",
-         "scale": ["Nivå 1: Ingen tidsplan eller forankring.", "Nivå 2: Tidsplan foreligger, men ikke validert.", "Nivå 3: Delvis forankret hos enkelte ansvarlige/eiere.", "Nivå 4: Fullt forankret og koordinert med budsjett- og styringsprosesser.", "Nivå 5: Planen brukes aktivt i styringsdialog og rapportering."]},
-        {"id": 22, "title": "Realisme og engasjement", "question": "Oppleves gevinstplanen og estimatene realistiske og engasjerende?",
-         "scale": ["Nivå 1: Ingen troverdighet eller engasjement.", "Nivå 2: Begrenset tillit til estimater.", "Nivå 3: Delvis aksept, men varierende engasjement.", "Nivå 4: Høy troverdighet og engasjement.", "Nivå 5: Sterk troverdighet og aktiv motivasjon i organisasjonen."]},
-        {"id": 23, "title": "Bygge momentum og tidlig gevinstuttak", "question": "Hvordan planlegges det for å bygge momentum og realisere tidlige gevinster?",
-         "scale": ["Nivå 1: Ingen plan for tidlig gevinstuttak.", "Nivå 2: Enkelte uformelle vurderinger av tidlige gevinster.", "Nivå 3: Plan for tidlig gevinstuttak er identifisert, men ikke koordinert.", "Nivå 4: Strukturert tilnærming for tidlig gevinstuttak med tildelt ansvar.", "Nivå 5: Tidlig gevinstuttak er integrert i programmets DNA."]}
+        {
+            "id": 1,
+            "title": "Bruk av tidligere læring og gevinstdata",
+            "question": "Hvordan anvendes erfaringer og læring fra tidligere prosjekter og gevinstarbeid i planleggingen av nye gevinster?",
+            "scale": [
+                "Nivå 1: Ingen læring fra tidligere arbeid anvendt.",
+                "Nivå 2: Enkelte erfaringer omtalt, men ikke strukturert brukt.",
+                "Nivå 3: Læring inkludert i planlegging for enkelte områder.",
+                "Nivå 4: Systematisk bruk av tidligere gevinstdata i planlegging og estimering.",
+                "Nivå 5: Kontinuerlig læring integrert i planleggingsprosessen og gevinststrategien."
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Strategisk retning og gevinstforståelse",
+            "question": "Hvilke gevinster arbeider dere med, og hvorfor er de viktige for organisasjonens strategiske mål?",
+            "scale": [
+                "Nivå 1: Gevinster er vagt definert, uten tydelig kobling til strategi.",
+                "Nivå 2: Gevinster er identifisert, men mangler klare kriterier og prioritering.",
+                "Nivå 3: Gevinster er dokumentert og delvis knyttet til strategiske mål, men grunnlaget har usikkerhet.",
+                "Nivå 4: Gevinster er tydelig koblet til strategiske mål med konkrete måltall.",
+                "Nivå 5: Gevinster er fullt integrert i styringssystemet og brukes i beslutninger."
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Gevinstkart og visualisering",
+            "question": "Er gevinstene synliggjort i gevinstkartet, med tydelig sammenheng mellom tiltak, effekter og mål?",
+            "scale": [
+                "Nivå 1: Gevinstkart finnes ikke eller er utdatert.",
+                "Nivå 2: Et foreløpig gevinstkart eksisterer, men dekker ikke hele området.",
+                "Nivå 3: Kartet inkluderer hovedgevinster, men mangler validering og detaljer.",
+                "Nivå 4: Kartet er brukt aktivt i planlegging og oppfølging.",
+                "Nivå 5: Gevinstkartet oppdateres kontinuerlig og er integrert i styringsdialoger."
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Strategisk kobling og KPI-er",
+            "question": "Er gevinstene tydelig knyttet til strategiske mål og eksisterende KPI-er?",
+            "scale": [
+                "Nivå 1: Ingen kobling mellom gevinster og strategi eller KPI-er.",
+                "Nivå 2: Kobling er antatt, men ikke dokumentert.",
+                "Nivå 3: Kobling er etablert for enkelte KPI-er, men ikke konsistent.",
+                "Nivå 4: Tydelig kobling mellom gevinster og relevante KPI-er.",
+                "Nivå 5: Koblingen følges opp i styringssystem og rapportering."
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Avgrensning av programgevinst",
+            "question": "Er det tydelig avklart hvilke effekter som stammer fra programmet versus andre tiltak eller økte rammer?",
+            "scale": [
+                "Nivå 1: Ingen skille mellom program- og eksterne effekter.",
+                "Nivå 2: Delvis omtalt, men uklart hva som er innenfor programmet.",
+                "Nivå 3: Avgrensning er gjort i plan, men ikke dokumentert grundig.",
+                "Nivå 4: Avgrensning er dokumentert og anvendt i beregninger.",
+                "Nivå 5: Effektisolering er standard praksis og brukes systematisk."
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Nullpunkter og estimater",
+            "question": "Er nullpunkter og estimater etablert, testet og dokumentert på en konsistent og troverdig måte?",
+            "scale": [
+                "Nivå 1: Nullpunkter mangler eller bygger på uprøvde antagelser.",
+                "Nivå 2: Enkelte nullpunkter finnes, men uten felles metode.",
+                "Nivå 3: Nullpunkter og estimater er definert, men med høy usikkerhet.",
+                "Nivå 4: Nullpunkter og estimater er basert på testede data og validerte metoder.",
+                "Nivå 5: Nullpunkter og estimater kvalitetssikres jevnlig og brukes aktivt til læring."
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Hypotesetesting og datagrunnlag",
+            "question": "Finnes formell prosess for hypotesetesting på representative caser?",
+            "scale": [
+                "Nivå 1: Ikke etablert/uklart; ingen dokumenterte praksiser.",
+                "Nivå 2: Delvis definert; uformell praksis uten forankring/validering.",
+                "Nivå 3: Etablert for deler av området; variabel kvalitet.",
+                "Nivå 4: Godt forankret og systematisk anvendt; måles og følges opp.",
+                "Nivå 5: Fullt integrert i styring; kontinuerlig forbedring og læring."
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Interessentengasjement",
+            "question": "Ble relevante interessenter involvert i utarbeidelsen av gevinstgrunnlag?",
+            "scale": [
+                "Nivå 1: Ingen involvering av interessenter.",
+                "Nivå 2: Begrenset og ustrukturert involvering.",
+                "Nivå 3: Bred deltakelse, men uten systematisk prosess.",
+                "Nivå 4: Systematisk og koordinert involvering med klar rollefordeling.",
+                "Nivå 5: Kontinuerlig engasjement med dokumentert medvirkning."
+            ]
+        },
+        {
+            "id": 9,
+            "title": "Gevinstforutsetninger",
+            "question": "Er alle vesentlige forutsetninger ivaretatt for å muliggjøre gevinstrealisering?",
+            "scale": [
+                "Nivå 1: Ingen kartlegging av gevinstforutsetninger.",
+                "Nivå 2: Noen forutsetninger er identifisert, men ikke systematisk dokumentert.",
+                "Nivå 3: Hovedforutsetninger er dokumentert, men uten klar eierskap.",
+                "Nivå 4: Alle kritiske forutsetninger er kartlagt med tildelt ansvar.",
+                "Nivå 5: Gevinstforutsetninger er integrert i risikostyring og oppfølges kontinuerlig."
+            ]
+        },
+        {
+            "id": 10,
+            "title": "Prinsipielle og vilkårsmessige kriterier",
+            "question": "Er forutsetninger og kriterier som påvirker gevinstene tydelig definert og dokumentert?",
+            "scale": [
+                "Nivå 1: Ingen kriterier dokumentert.",
+                "Nivå 2: Kriterier er beskrevet uformelt.",
+                "Nivå 3: Kriterier dokumentert i deler av planverket.",
+                "Nivå 4: Vesentlige kriterier er analysert og håndtert i gevinstrealiseringsplanen.",
+                "Nivå 5: Kriterier overvåkes, følges opp og inngår i risikostyringen."
+            ]
+        },
+        {
+            "id": 11,
+            "title": "Enighet om nullpunkter/estimater",
+            "question": "Er det oppnådd enighet blant nøkkelinteressenter om nullpunkter og estimater?",
+            "scale": [
+                "Nivå 1: Ingen enighet eller dokumentert praksis.",
+                "Nivå 2: Delvis enighet, men ikke formalisert.",
+                "Nivå 3: Enighet for hovedestimater, men med reservasjoner.",
+                "Nivå 4: Full enighet dokumentert og forankret.",
+                "Nivå 5: Kontinuerlig dialog og justering av estimater med interessentene."
+            ]
+        },
+        {
+            "id": 12,
+            "title": "Disponering av kostnads- og tidsbesparelser",
+            "question": "Hvordan er kostnads- og tidsbesparelser planlagt disponert mellom prissatte og ikke-prissatte gevinster?",
+            "scale": [
+                "Nivå 1: Ingen plan for disponering eller måling av besparelser.",
+                "Nivå 2: Delvis oversikt, men ikke dokumentert eller fulgt opp.",
+                "Nivå 3: Plan finnes for enkelte områder, men uten systematikk.",
+                "Nivå 4: Disponering og effekter dokumentert og målt.",
+                "Nivå 5: Frigjorte ressurser disponeres strategisk og måles som del av gevinstrealiseringen."
+            ]
+        },
+        {
+            "id": 13,
+            "title": "Måling av effektivitet og produktivitet",
+            "question": "Hvordan måles økt effektivitet og produktivitet som følge av besparelser?",
+            "scale": [
+                "Nivå 1: Ingen måling av effektivitet eller produktivitet.",
+                "Nivå 2: Enkelte målinger, men ikke systematisk.",
+                "Nivå 3: Måling for enkelte gevinster, men begrenset fokus på bærekraft.",
+                "Nivå 4: Systematisk måling og vurdering av om gevinster opprettholdes over tid.",
+                "Nivå 5: Måling integrert i gevinstoppfølgingen, bærekraftige gevinster sikres."
+            ]
+        },
+        {
+            "id": 14,
+            "title": "Operasjonell risiko og ulemper",
+            "question": "Er mulige negative konsekvenser eller ulemper knyttet til operasjonelle forhold identifisert, vurdert og håndtert i planen?",
+            "scale": [
+                "Nivå 1: Negative effekter ikke vurdert.",
+                "Nivå 2: Kjent, men ikke håndtert.",
+                "Nivå 3: Beskrevet, men ikke fulgt opp systematisk.",
+                "Nivå 4: Håndtert og overvåket med tilpasning til ulike operasjonelle scenarier.",
+                "Nivå 5: Systematisk vurdert og del av gevinstdialogen med kontinuerlig justering."
+            ]
+        },
+        {
+            "id": 15,
+            "title": "Balanse mellom gevinster og ulemper",
+            "question": "Hvordan sikres det at balansen mellom gevinster og ulemper vurderes i styringsdialoger?",
+            "scale": [
+                "Nivå 1: Ingen vurdering av balanse.",
+                "Nivå 2: Diskuteres uformelt.",
+                "Nivå 3: Del av enkelte oppfølgingsmøter.",
+                "Nivå 4: Systematisk vurdert i gevinststyring.",
+                "Nivå 5: Inngår som fast punkt i styrings- og gevinstdialoger."
+            ]
+        },
+        {
+            "id": 16,
+            "title": "Dokumentasjon og gevinstrealiseringsplan",
+            "question": "Er det utarbeidet en forankret gevinstrealiseringsplan som beskriver hvordan gevinstene skal hentes ut og måles?",
+            "scale": [
+                "Nivå 1: Ingen formell gevinstrealiseringsplan.",
+                "Nivå 2: Utkast til plan finnes, men er ufullstendig.",
+                "Nivå 3: Plan er etablert, men ikke validert eller periodisert.",
+                "Nivå 4: Planen er forankret, oppdatert og koblet til gevinstkartet.",
+                "Nivå 5: Planen brukes aktivt som styringsdokument med revisjon."
+            ]
+        },
+        {
+            "id": 17,
+            "title": "Gevinstrealiseringsplan som operativ handlingsplan",
+            "question": "Hvordan sikres det at gevinstrealiseringsplanen fungerer som en operativ handlingsplan i linjen med tilpasning til ulike strekningsforhold?",
+            "scale": [
+                "Nivå 1: Planen brukes ikke som operativt styringsverktøy.",
+                "Nivå 2: Plan finnes, men uten operativ oppfølging.",
+                "Nivå 3: Planen følges delvis opp i linjen.",
+                "Nivå 4: Planen brukes aktivt som handlingsplan og styringsverktøy.",
+                "Nivå 5: Gevinstplanen er fullt operativt integrert i linjens handlingsplaner og rapportering med tilpasning til lokale forhold."
+            ]
+        },
+        {
+            "id": 18,
+            "title": "Endringsberedskap og operativ mottaksevne",
+            "question": "Er organisasjonen forberedt og har den tilstrekkelig kapasitet til å ta imot endringer og nye arbeidsformer som følger av programmet, inkludert tilpasning til ulike strekningsforhold?",
+            "scale": [
+                "Nivå 1: Ingen plan for endringsberedskap.",
+                "Nivå 2: Kapasitet vurderes uformelt, men ikke håndtert.",
+                "Nivå 3: Endringskapasitet omtales, men uten konkrete tiltak.",
+                "Nivå 4: Tilfredsstillende beredskap etablert og koordinert med linjen.",
+                "Nivå 5: Endringskapasitet er strukturert, overvåket og integrert i styring med tilpasning til lokale forhold."
+            ]
+        },
+        {
+            "id": 19,
+            "title": "Kommunikasjon og forankring",
+            "question": "Er gevinstgrunnlag, roller og forventninger godt kommunisert i organisasjonen?",
+            "scale": [
+                "Nivå 1: Ingen felles forståelse eller kommunikasjon.",
+                "Nivå 2: Informasjon deles sporadisk.",
+                "Nivå 3: Kommunikasjon er planlagt, men ikke systematisk målt.",
+                "Nivå 4: Kommunikasjon er systematisk og forankret i organisasjonen.",
+                "Nivå 5: Forankring skjer løpende som del av styringsdialog."
+            ]
+        },
+        {
+            "id": 20,
+            "title": "Eierskap og ansvar",
+            "question": "Er ansvar og roller tydelig definert for å sikre gjennomføring og gevinstuttak?",
+            "scale": [
+                "Nivå 1: Ansvar er uklart eller mangler.",
+                "Nivå 2: Ansvar er delvis definert, men ikke praktisert.",
+                "Nivå 3: Ansvar er kjent, men samhandling varierer.",
+                "Nivå 4: Roller og ansvar fungerer godt i praksis.",
+                "Nivå 5: Sterkt eierskap og kultur for ansvarliggjøring."
+            ]
+        },
+        {
+            "id": 21,
+            "title": "Periodisering og forankring",
+            "question": "Er gevinstrealiseringsplanen periodisert, validert og godkjent av ansvarlige?",
+            "scale": [
+                "Nivå 1: Ingen tidsplan eller forankring.",
+                "Nivå 2: Tidsplan foreligger, men ikke validert.",
+                "Nivå 3: Delvis forankret hos enkelte ansvarlige/eiere.",
+                "Nivå 4: Fullt forankret og koordinert med budsjett- og styringsprosesser.",
+                "Nivå 5: Planen brukes aktivt i styringsdialog og rapportering."
+            ]
+        },
+        {
+            "id": 22,
+            "title": "Realisme og engasjement",
+            "question": "Opplever dere at gevinstplanen og estimatene oppleves realistiske og engasjerer eierne og interessentene?",
+            "scale": [
+                "Nivå 1: Ingen troverdighet eller engasjement.",
+                "Nivå 2: Begrenset tillit til estimater.",
+                "Nivå 3: Delvis aksept, men varierende engasjement.",
+                "Nivå 4: Høy troverdighet og engasjement.",
+                "Nivå 5: Sterk troverdighet og aktiv motivasjon i organisasjonen."
+            ]
+        },
+        {
+            "id": 23,
+            "title": "Bygge momentum og tidlig gevinstuttak",
+            "question": "Hvordan planlegges det for å bygge momentum og realisere tidlige gevinster underveis i programmet?",
+            "scale": [
+                "Nivå 1: Ingen plan for tidlig gevinstuttak eller oppbygging av momentum.",
+                "Nivå 2: Enkelte uformelle vurderinger av tidlige gevinster.",
+                "Nivå 3: Plan for tidlig gevinstuttak er identifisert, men ikke koordinert.",
+                "Nivå 4: Strukturert tilnærming for tidlig gevinstuttak med tildelt ansvar.",
+                "Nivå 5: Tidlig gevinstuttak er integrert i programmets DNA og brukes aktivt for å bygge momentum."
+            ]
+        }
     ],
     "Gjennomføring": [
-        {"id": 1, "title": "Bruk av tidligere læring", "question": "Hvordan brukes erfaringer fra tidligere til å justere tiltak under gjennomføringen?",
-         "scale": ["Nivå 1: Ingen læring anvendt.", "Nivå 2: Enkelte erfaringer omtalt.", "Nivå 3: Læring inkludert for enkelte områder.", "Nivå 4: Systematisk bruk av tidligere gevinstdata.", "Nivå 5: Kontinuerlig læring integrert."]},
-        {"id": 2, "title": "Strategisk retning", "question": "Hvordan opprettholdes strategisk retning under gjennomføring?",
-         "scale": ["Nivå 1: Strategisk kobling glemmes.", "Nivå 2: Strategi omtales, men ikke operasjonalisert.", "Nivå 3: Strategisk kobling vedlikeholdes delvis.", "Nivå 4: Tydelig strategisk retning med oppdatering.", "Nivå 5: Strategi dynamisk tilpasses."]},
-        {"id": 3, "title": "Gevinstkart", "question": "Hvordan brukes gevinstkartet aktivt under gjennomføring?",
-         "scale": ["Nivå 1: Brukes ikke.", "Nivå 2: Vises, men ikke aktivt brukt.", "Nivå 3: Oppdateres og brukes i noen beslutninger.", "Nivå 4: Aktivt styringsverktøy.", "Nivå 5: Brukes dynamisk til justering."]},
-        {"id": 4, "title": "KPI-oppfølging", "question": "Hvordan følges strategisk kobling og KPI-er opp?",
-         "scale": ["Nivå 1: Ingen oppfølging.", "Nivå 2: KPI-er måles, men kobling mangler.", "Nivå 3: Noen KPI-er følges opp.", "Nivå 4: Systematisk oppfølging.", "Nivå 5: Dynamisk justering."]},
-        {"id": 5, "title": "Avgrensning", "question": "Hvordan håndteres avgrensning når nye forhold oppstår?",
-         "scale": ["Nivå 1: Avgrensning glemmes.", "Nivå 2: Omtales, men ikke operasjonalisert.", "Nivå 3: Håndteres for større endringer.", "Nivå 4: System for håndtering.", "Nivå 5: Dynamisk avgrensning integrert."]},
-        {"id": 6, "title": "Nullpunkter og estimater", "question": "Hvordan justeres nullpunkter og estimater basert på nye data?",
-         "scale": ["Nivå 1: Justeres ikke.", "Nivå 2: Ad hoc justering.", "Nivå 3: Systematisk for store avvik.", "Nivå 4: Regelmessig revisjon.", "Nivå 5: Kontinuerlig basert på realtidsdata."]},
-        {"id": 7, "title": "Hypotesetesting", "question": "Hvordan testes hypoteser under gjennomføring?",
-         "scale": ["Nivå 1: Testes ikke.", "Nivå 2: Noen uformelle tester.", "Nivå 3: Formell testing for kritiske hypoteser.", "Nivå 4: Systematisk testing og validering.", "Nivå 5: Kontinuerlig testing integrert."]},
-        {"id": 8, "title": "Interessentengasjement", "question": "Hvordan opprettholdes interessentengasjement?",
-         "scale": ["Nivå 1: Engasjement avtar.", "Nivå 2: Begrenset for viktige beslutninger.", "Nivå 3: Regelmessig for større endringer.", "Nivå 4: Systematisk oppfølging.", "Nivå 5: Kontinuerlig dialog og samskaping."]},
-        {"id": 9, "title": "Gevinstforutsetninger", "question": "Hvordan overvåkes gevinstforutsetninger?",
-         "scale": ["Nivå 1: Overvåkes ikke.", "Nivå 2: Noen overvåkes uformelt.", "Nivå 3: Systematisk for kritiske.", "Nivå 4: Aktiv håndtering av endrede.", "Nivå 5: Integrert i risikostyring."]},
-        {"id": 10, "title": "Kriterier", "question": "Hvordan håndteres endringer i kriterier?",
-         "scale": ["Nivå 1: Håndteres ikke.", "Nivå 2: Store endringer reaktivt.", "Nivå 3: System for håndtering.", "Nivå 4: Proaktiv håndtering.", "Nivå 5: Dynamisk tilpasning."]},
-        {"id": 11, "title": "Enighet", "question": "Hvordan opprettholdes enighet om estimater?",
-         "scale": ["Nivå 1: Testes ikke.", "Nivå 2: Bekreftes ved store endringer.", "Nivå 3: Regelmessig bekreftelse.", "Nivå 4: Systematisk arbeid.", "Nivå 5: Kontinuerlig dialog."]},
-        {"id": 12, "title": "Disponering", "question": "Hvordan håndteres disponering av besparelser?",
-         "scale": ["Nivå 1: Håndteres ikke.", "Nivå 2: Justeres for store avvik.", "Nivå 3: Systematisk revisjon.", "Nivå 4: Dynamisk tilpasning.", "Nivå 5: Optimal disponering integrert."]},
-        {"id": 13, "title": "Effektivitetsmåling", "question": "Hvordan måles effektivitet og produktivitet?",
-         "scale": ["Nivå 1: Måles ikke.", "Nivå 2: Noen målinger registreres.", "Nivå 3: Systematisk med begrenset analyse.", "Nivå 4: Regelmessig analyse og justering.", "Nivå 5: Realtids overvåkning."]},
-        {"id": 14, "title": "Risiko", "question": "Hvordan identifiseres nye risikoer?",
-         "scale": ["Nivå 1: Identifiseres ikke.", "Nivå 2: Store håndteres reaktivt.", "Nivå 3: Systematisk identifisering.", "Nivå 4: Proaktiv håndtering.", "Nivå 5: Integrert i daglig drift."]},
-        {"id": 15, "title": "Balanse", "question": "Hvordan vurderes balansen gevinster/ulemper?",
-         "scale": ["Nivå 1: Vurderes ikke.", "Nivå 2: Ved store endringer.", "Nivå 3: Regelmessig vurdering.", "Nivå 4: Systematisk overvåkning.", "Nivå 5: Integrert i beslutninger."]},
-        {"id": 16, "title": "Plan-oppdatering", "question": "Hvordan oppdateres gevinstrealiseringsplanen?",
-         "scale": ["Nivå 1: Oppdateres ikke.", "Nivå 2: Ved store endringer.", "Nivå 3: Regelmessig oppdatering.", "Nivå 4: Aktivt i styring.", "Nivå 5: Dynamisk i sanntid."]},
-        {"id": 17, "title": "Operativ plan", "question": "Hvordan fungerer planen som operativ handlingsplan?",
-         "scale": ["Nivå 1: Brukes ikke.", "Nivå 2: Til visse operasjoner.", "Nivå 3: Integrert i deler.", "Nivå 4: Aktivt verktøy.", "Nivå 5: Fullt integrert."]},
-        {"id": 18, "title": "Endringsberedskap", "question": "Hvordan utvikles endringsberedskap?",
-         "scale": ["Nivå 1: Utvikles ikke.", "Nivå 2: Begrenset fokus.", "Nivå 3: Systematisk arbeid.", "Nivå 4: Målrettet utvikling.", "Nivå 5: Kontinuerlig tilpasning."]},
-        {"id": 19, "title": "Kommunikasjon", "question": "Hvordan opprettholdes kommunikasjon?",
-         "scale": ["Nivå 1: Avtar.", "Nivå 2: Begrenset om endringer.", "Nivå 3: Regelmessig om fremdrift.", "Nivå 4: Systematisk plan.", "Nivå 5: Kontinuerlig dialog integrert."]},
-        {"id": 20, "title": "Eierskap", "question": "Hvordan utøves eierskap og ansvar?",
-         "scale": ["Nivå 1: Svekkes.", "Nivå 2: Begrenset i kritiske faser.", "Nivå 3: Tydelig for sentrale områder.", "Nivå 4: Aktivt gjennom hele prosessen.", "Nivå 5: Sterk kultur som driver."]},
-        {"id": 21, "title": "Periodisering", "question": "Hvordan justeres periodisering?",
-         "scale": ["Nivå 1: Justeres ikke.", "Nivå 2: Store justeringer.", "Nivå 3: Regelmessig revisjon.", "Nivå 4: Dynamisk tilpasning.", "Nivå 5: Fleksibel integrert."]},
-        {"id": 22, "title": "Realisme", "question": "Hvordan opprettholdes realisme og engasjement?",
-         "scale": ["Nivå 1: Avtar.", "Nivå 2: Begrenset fokus.", "Nivå 3: Arbeid med å opprettholde.", "Nivå 4: Systematisk styrking.", "Nivå 5: Høy gjennom hele prosessen."]},
-        {"id": 23, "title": "Momentum", "question": "Hvordan bygges momentum gjennom tidlig gevinstuttak?",
-         "scale": ["Nivå 1: Ingen fokus.", "Nivå 2: Noen gevinster uten strategi.", "Nivå 3: Planlagt, men begrenset.", "Nivå 4: Systematisk arbeid.", "Nivå 5: Kontinuerlig fokus."]}
+        {
+            "id": 1,
+            "title": "Bruk av tidligere læring og gevinstdata",
+            "question": "Hvordan brukes erfaringer og læring fra tidligere prosjekter og gevinstarbeid til å justere tiltak under gjennomføringen?",
+            "scale": [
+                "Nivå 1: Ingen læring fra tidligere arbeid anvendt under gjennomføring.",
+                "Nivå 2: Enkelte erfaringer omtalt, men ikke strukturert brukt for justering.",
+                "Nivå 3: Læring inkludert i justering for enkelte områder under gjennomføring.",
+                "Nivå 4: Systematisk bruk av tidligere gevinstdata for å justere tiltak underveis.",
+                "Nivå 5: Kontinuerlig læring integrert i gjennomføringsprosessen og gevinstjustering."
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Strategisk retning og gevinstforståelse",
+            "question": "Hvordan opprettholdes den strategiske retningen og forståelsen av gevinster under gjennomføring?",
+            "scale": [
+                "Nivå 1: Strategisk kobling glemmes under gjennomføring.",
+                "Nivå 2: Strategi omtales, men ikke operasjonalisert i gjennomføring.",
+                "Nivå 3: Strategisk kobling vedlikeholdes i deler av gjennomføringen.",
+                "Nivå 4: Tydelig strategisk retning i gjennomføring med regelmessig oppdatering.",
+                "Nivå 5: Strategi og gevinstforståelse dynamisk tilpasses underveis basert på læring."
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Gevinstkart og visualisering",
+            "question": "Hvordan brukes gevinstkartet aktivt under gjennomføring for å styre og kommunisere fremdrift?",
+            "scale": [
+                "Nivå 1: Gevinstkartet brukes ikke under gjennomføring.",
+                "Nivå 2: Gevinstkartet vises, men ikke aktivt brukt.",
+                "Nivå 3: Gevinstkartet oppdateres og brukes i noen beslutninger.",
+                "Nivå 4: Gevinstkartet er aktivt styringsverktøy under gjennomføring.",
+                "Nivå 5: Gevinstkartet brukes dynamisk til å justere strategi og tiltak underveis."
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Strategisk kobling og KPI-er",
+            "question": "Hvordan følges opp den strategiske koblingen og KPI-ene under gjennomføring?",
+            "scale": [
+                "Nivå 1: Ingen oppfølging av strategisk kobling under gjennomføring.",
+                "Nivå 2: KPI-er måles, men kobling til strategi mangler.",
+                "Nivå 3: Noen KPI-er følges opp med strategisk kobling.",
+                "Nivå 4: Systematisk oppfølging av KPI-er med tydelig strategisk kobling.",
+                "Nivå 5: Dynamisk justering av KPI-er basert på strategisk utvikling underveis."
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Avgrensning av programgevinst",
+            "question": "Hvordan håndteres avgrensning av programgevinster under gjennomføring når nye forhold oppstår?",
+            "scale": [
+                "Nivå 1: Avgrensning glemmes under gjennomføring.",
+                "Nivå 2: Avgrensning omtales, men ikke operasjonalisert.",
+                "Nivå 3: Avgrensning håndteres for større endringer.",
+                "Nivå 4: System for å håndtere avgrensning under gjennomføring.",
+                "Nivå 5: Dynamisk avgrensningshåndtering integrert i beslutningsprosesser."
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Nullpunkter og estimater",
+            "question": "Hvordan justeres nullpunkter og estimater under gjennomføring basert på nye data og erfaringer?",
+            "scale": [
+                "Nivå 1: Nullpunkter og estimater justeres ikke under gjennomføring.",
+                "Nivå 2: Justering skjer ad hoc uten struktur.",
+                "Nivå 3: Systematisk justering for store avvik.",
+                "Nivå 4: Regelmessig revisjon og justering av nullpunkter og estimater.",
+                "Nivå 5: Kontinuerlig justering basert på realtidsdata og læring."
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Hypotesetesting og datagrunnlag",
+            "question": "Hvordan testes hypoteser og datagrunnlag under gjennomføring for å validere tilnærmingen?",
+            "scale": [
+                "Nivå 1: Hypoteser testes ikke under gjennomføring.",
+                "Nivå 2: Noen uformelle tester gjennomføres.",
+                "Nivå 3: Formell testing for kritiske hypoteser.",
+                "Nivå 4: Systematisk testing og validering under gjennomføring.",
+                "Nivå 5: Kontinuerlig hypotesetesting integrert i læringsprosesser."
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Interessentengasjement",
+            "question": "Hvordan opprettholdes interessentengasjement under gjennomføring?",
+            "scale": [
+                "Nivå 1: Interessentengasjement avtar under gjennomføring.",
+                "Nivå 2: Begrenset engasjement for viktige beslutninger.",
+                "Nivå 3: Regelmessig engasjement for større endringer.",
+                "Nivå 4: Systematisk interessentoppfølging under gjennomføring.",
+                "Nivå 5: Kontinuerlig dialog og samskaping med interessenter."
+            ]
+        },
+        {
+            "id": 9,
+            "title": "Gevinstforutsetninger",
+            "question": "Hvordan overvåkes og håndteres gevinstforutsetninger under gjennomføring?",
+            "scale": [
+                "Nivå 1: Forutsetninger overvåkes ikke under gjennomføring.",
+                "Nivå 2: Noen forutsetninger overvåkes uformelt.",
+                "Nivå 3: Systematisk overvåkning av kritiske forutsetninger.",
+                "Nivå 4: Aktiv håndtering av endrede forutsetninger.",
+                "Nivå 5: Forutsetningsstyring integrert i risikostyring og beslutninger."
+            ]
+        },
+        {
+            "id": 10,
+            "title": "Prinsipielle og vilkårsmessige kriterier",
+            "question": "Hvordan håndteres endringer i prinsipielle og vilkårsmessige kriterier under gjennomføring?",
+            "scale": [
+                "Nivå 1: Endringer i kriterier håndteres ikke.",
+                "Nivå 2: Store endringer håndteres reaktivt.",
+                "Nivå 3: System for å håndtere endringer i kriterier.",
+                "Nivå 4: Proaktiv håndtering av endrede kriterier.",
+                "Nivå 5: Dynamisk tilpasning til endrede kriterier i sanntid."
+            ]
+        },
+        {
+            "id": 11,
+            "title": "Enighet om nullpunkter/estimater",
+            "question": "Hvordan opprettholdes enighet om nullpunkter og estimater under gjennomføring?",
+            "scale": [
+                "Nivå 1: Enighet testes ikke under gjennomføring.",
+                "Nivå 2: Enighet bekreftes ved store endringer.",
+                "Nivå 3: Regelmessig bekreftelse av enighet.",
+                "Nivå 4: Systematisk arbeid for å opprettholde enighet.",
+                "Nivå 5: Kontinuerlig dialog og justering for å opprettholde enighet."
+            ]
+        },
+        {
+            "id": 12,
+            "title": "Disponering av kostnads- og tidsbesparelser",
+            "question": "Hvordan håndteres disponering av besparelser under gjennomføring?",
+            "scale": [
+                "Nivå 1: Disponering håndteres ikke under gjennomføring.",
+                "Nivå 2: Disponering justeres for store avvik.",
+                "Nivå 3: Systematisk revisjon av disponeringsplaner.",
+                "Nivå 4: Dynamisk tilpasning av disponering basert på resultater.",
+                "Nivå 5: Optimal disponering integrert i beslutningsstøtte."
+            ]
+        },
+        {
+            "id": 13,
+            "title": "Måling av effektivitet og produktivitet",
+            "question": "Hvordan måles og følges opp effektivitet og produktivitet under gjennomføring?",
+            "scale": [
+                "Nivå 1: Effektivitet og produktivitet måles ikke underveis.",
+                "Nivå 2: Noen målinger registreres, men ikke analysert.",
+                "Nivå 3: Systematisk måling med begrenset analyse.",
+                "Nivå 4: Regelmessig analyse og justering basert på målinger.",
+                "Nivå 5: Realtids overvåkning og proaktiv justering."
+            ]
+        },
+        {
+            "id": 14,
+            "title": "Operasjonell risiko og ulemper",
+            "question": "Hvordan identifiseres og håndteres nye operasjonelle risikoer og ulemper under gjennomføring?",
+            "scale": [
+                "Nivå 1: Nye risikoer identifiseres ikke underveis.",
+                "Nivå 2: Store risikoer håndteres reaktivt.",
+                "Nivå 3: Systematisk identifisering av nye risikoer.",
+                "Nivå 4: Proaktiv håndtering av nye risikoer.",
+                "Nivå 5: Risikostyring integrert i daglig drift."
+            ]
+        },
+        {
+            "id": 15,
+            "title": "Balanse mellom gevinster og ulemper",
+            "question": "Hvordan vurderes balansen mellom gevinster og ulemper under gjennomføring?",
+            "scale": [
+                "Nivå 1: Balansen vurderes ikke under gjennomføring.",
+                "Nivå 2: Balansen vurderes ved store endringer.",
+                "Nivå 3: Regelmessig vurdering av balansen.",
+                "Nivå 4: Systematisk overvåkning av balansen.",
+                "Nivå 5: Balansevurdering integrert i beslutningsprosesser."
+            ]
+        },
+        {
+            "id": 16,
+            "title": "Dokumentasjon og gevinstrealiseringsplan",
+            "question": "Hvordan oppdateres og brukes gevinstrealiseringsplanen under gjennomføring?",
+            "scale": [
+                "Nivå 1: Gevinstrealiseringsplanen oppdateres ikke.",
+                "Nivå 2: Planen oppdateres ved store endringer.",
+                "Nivå 3: Regelmessig oppdatering av planen.",
+                "Nivå 4: Planen brukes aktivt i styring og beslutninger.",
+                "Nivå 5: Dynamisk oppdatering og bruk av planen i sanntid."
+            ]
+        },
+        {
+            "id": 17,
+            "title": "Gevinstrealiseringsplan som operativ handlingsplan",
+            "question": "Hvordan fungerer gevinstrealiseringsplanen som operativ handlingsplan under gjennomføring?",
+            "scale": [
+                "Nivå 1: Planen brukes ikke som operativ handlingsplan.",
+                "Nivå 2: Planen brukes til visse operasjoner.",
+                "Nivå 3: Planen er integrert i deler av den operative styringen.",
+                "Nivå 4: Planen er aktivt operativt styringsverktøy.",
+                "Nivå 5: Planen er fullt integrert i alle operative beslutninger."
+            ]
+        },
+        {
+            "id": 18,
+            "title": "Endringsberedskap og operativ mottaksevne",
+            "question": "Hvordan utvikles endringsberedskap og operativ mottaksevne under gjennomføring?",
+            "scale": [
+                "Nivå 1: Endringsberedskap utvikles ikke underveis.",
+                "Nivå 2: Begrenset fokus på endringsberedskap.",
+                "Nivå 3: Systematisk arbeid med endringsberedskap.",
+                "Nivå 4: Målrettet utvikling av mottaksevne.",
+                "Nivå 5: Kontinuerlig tilpasning og læring i endringsprosessen."
+            ]
+        },
+        {
+            "id": 19,
+            "title": "Kommunikasjon og forankring",
+            "question": "Hvordan opprettholdes kommunikasjon og forankring under gjennomføring?",
+            "scale": [
+                "Nivå 1: Kommunikasjon avtar under gjennomføring.",
+                "Nivå 2: Begrenset kommunikasjon om viktige endringer.",
+                "Nivå 3: Regelmessig kommunikasjon om fremdrift.",
+                "Nivå 4: Systematisk kommunikasjonsplan under gjennomføring.",
+                "Nivå 5: Kontinuerlig dialog og tilbakemelding integrert i prosessen."
+            ]
+        },
+        {
+            "id": 20,
+            "title": "Eierskap og ansvar",
+            "question": "Hvordan utøves eierskap og ansvar under gjennomføring?",
+            "scale": [
+                "Nivå 1: Eierskap og ansvar svekkes under gjennomføring.",
+                "Nivå 2: Begrenset eierskap i kritiske faser.",
+                "Nivå 3: Tydelig eierskap for sentrale ansvarsområder.",
+                "Nivå 4: Aktivt utøvd eierskap gjennom hele prosessen.",
+                "Nivå 5: Sterk eierskapskultur som driver gjennomføring."
+            ]
+        },
+        {
+            "id": 21,
+            "title": "Periodisering og forankring",
+            "question": "Hvordan justeres periodisering og forankring under gjennomføring?",
+            "scale": [
+                "Nivå 1: Periodisering justeres ikke under gjennomføring.",
+                "Nivå 2: Store justeringer i periodisering.",
+                "Nivå 3: Regelmessig revisjon av periodisering.",
+                "Nivå 4: Dynamisk tilpasning av periodisering.",
+                "Nivå 5: Fleksibel periodisering integrert i styringssystemet."
+            ]
+        },
+        {
+            "id": 22,
+            "title": "Realisme og engasjement",
+            "question": "Hvordan opprettholdes realisme og engasjement under gjennomføring?",
+            "scale": [
+                "Nivå 1: Realisme og engasjement avtar.",
+                "Nivå 2: Begrenset fokus på å opprettholde engasjement.",
+                "Nivå 3: Arbeid med å opprettholde realisme og engasjement.",
+                "Nivå 4: Systematisk arbeid for å styrke troverdighet.",
+                "Nivå 5: Høy troverdighet og engasjement gjennom hele prosessen."
+            ]
+        },
+        {
+            "id": 23,
+            "title": "Bygge momentum og tidlig gevinstuttak",
+            "question": "Hvordan bygges momentum gjennom tidlig gevinstuttak under gjennomføringsfasen?",
+            "scale": [
+                "Nivå 1: Ingen fokus på momentum eller tidlig gevinstuttak.",
+                "Nivå 2: Noen tidlige gevinster realiseres, men uten strategi.",
+                "Nivå 3: Planlagt for tidlig gevinstuttak, men begrenset gjennomføring.",
+                "Nivå 4: Systematisk arbeid med tidlig gevinstuttak for å bygge momentum.",
+                "Nivå 5: Kontinuerlig fokus på momentum gjennom suksessiv gevinstrealisering."
+            ]
+        }
     ],
     "Realisering": [
-        {"id": 1, "title": "Læring", "question": "Hvordan anvendes læring for å optimalisere gevinstuttak?",
-         "scale": ["Nivå 1: Ingen læring.", "Nivå 2: Enkelte erfaringer.", "Nivå 3: Systematisk bruk.", "Nivå 4: Integrert i prosessen.", "Nivå 5: Kontinuerlig optimalisering."]},
-        {"id": 2, "title": "Strategisk retning", "question": "Hvordan sikres strategisk retning under realisering?",
-         "scale": ["Nivå 1: Glemmes.", "Nivå 2: Refereres, ikke operasjonalisert.", "Nivå 3: Tydelig retning.", "Nivå 4: Dynamisk tilpasses.", "Nivå 5: Fullt integrert."]},
-        {"id": 3, "title": "Gevinstkart", "question": "Hvordan brukes gevinstkartet for å styre realiseringen?",
-         "scale": ["Nivå 1: Brukes ikke.", "Nivå 2: Vises, ikke aktivt.", "Nivå 3: Brukes til prioritering.", "Nivå 4: Aktivt verktøy.", "Nivå 5: Dynamisk oppdateres."]},
-        {"id": 4, "title": "KPI-er", "question": "Hvordan følges KPI-er opp under realisering?",
-         "scale": ["Nivå 1: Ingen oppfølging.", "Nivå 2: Måles, svak kobling.", "Nivå 3: Systematisk oppfølging.", "Nivå 4: Dynamisk justering.", "Nivå 5: Full integrasjon."]},
-        {"id": 5, "title": "Avgrensning", "question": "Hvordan håndteres avgrensning under realisering?",
-         "scale": ["Nivå 1: Håndteres ikke.", "Nivå 2: Store utfordringer håndteres.", "Nivå 3: System for håndtering.", "Nivå 4: Proaktiv håndtering.", "Nivå 5: Integrert i prosessen."]},
-        {"id": 6, "title": "Nullpunkter", "question": "Hvordan valideres nullpunkter under realisering?",
-         "scale": ["Nivå 1: Valideres ikke.", "Nivå 2: Store avvik reaktivt.", "Nivå 3: Systematisk validering.", "Nivå 4: Kontinuerlig justering.", "Nivå 5: Dynamisk oppdatering."]},
-        {"id": 7, "title": "Hypoteser", "question": "Hvordan valideres hypoteser under realisering?",
-         "scale": ["Nivå 1: Valideres ikke.", "Nivå 2: Noen testes uformelt.", "Nivå 3: Systematisk for kritiske.", "Nivå 4: Omfattende validering.", "Nivå 5: Kontinuerlig testing."]},
-        {"id": 8, "title": "Interessenter", "question": "Hvordan opprettholdes interessentengasjement?",
-         "scale": ["Nivå 1: Avtar.", "Nivå 2: Begrenset for beslutninger.", "Nivå 3: Regelmessig dialog.", "Nivå 4: Aktivt engasjement.", "Nivå 5: Interessenter er drivkrefter."]},
-        {"id": 9, "title": "Forutsetninger", "question": "Hvordan realiseres gevinstforutsetninger?",
-         "scale": ["Nivå 1: Overvåkes ikke.", "Nivå 2: Noen følges opp.", "Nivå 3: Systematisk overvåkning.", "Nivå 4: Aktiv realisering.", "Nivå 5: Integrert i gevinstuttak."]},
-        {"id": 10, "title": "Kriterier", "question": "Hvordan håndteres kriterier under realisering?",
-         "scale": ["Nivå 1: Håndteres ikke.", "Nivå 2: Store avvik håndteres.", "Nivå 3: Systematisk håndtering.", "Nivå 4: Proaktiv tilpasning.", "Nivå 5: Integrert i beslutninger."]},
-        {"id": 11, "title": "Enighet", "question": "Hvordan opprettholdes enighet?",
-         "scale": ["Nivå 1: Testes ikke.", "Nivå 2: Ved store endringer.", "Nivå 3: Regelmessig bekreftelse.", "Nivå 4: Kontinuerlig arbeid.", "Nivå 5: Full enighet gjennom fasen."]},
-        {"id": 12, "title": "Disponering", "question": "Hvordan håndteres disponering?",
-         "scale": ["Nivå 1: Håndteres ikke.", "Nivå 2: Store endringer håndteres.", "Nivå 3: Systematisk revisjon.", "Nivå 4: Dynamisk tilpasning.", "Nivå 5: Optimal disponering."]},
-        {"id": 13, "title": "Effektivitet", "question": "Hvordan forbedres effektivitet?",
-         "scale": ["Nivå 1: Måles ikke.", "Nivå 2: Noen målinger.", "Nivå 3: Systematisk rapportering.", "Nivå 4: Brukes til forbedring.", "Nivå 5: Kontinuerlig forbedring."]},
-        {"id": 14, "title": "Risiko", "question": "Hvordan håndteres risikoer?",
-         "scale": ["Nivå 1: Håndteres ikke.", "Nivå 2: Store reaktivt.", "Nivå 3: Systematisk håndtering.", "Nivå 4: Proaktiv.", "Nivå 5: Integrert i arbeid."]},
-        {"id": 15, "title": "Balanse", "question": "Hvordan vurderes balansen?",
-         "scale": ["Nivå 1: Vurderes ikke.", "Nivå 2: Ved store endringer.", "Nivå 3: Regelmessig.", "Nivå 4: Systematisk.", "Nivå 5: Integrert i beslutninger."]},
-        {"id": 16, "title": "Plan", "question": "Hvordan brukes planen?",
-         "scale": ["Nivå 1: Brukes ikke.", "Nivå 2: Refereres ved behov.", "Nivå 3: Aktivt i realisering.", "Nivå 4: Oppdateres kontinuerlig.", "Nivå 5: Sentralt verktøy."]},
-        {"id": 17, "title": "Operativ plan", "question": "Hvordan fungerer planen operativt?",
-         "scale": ["Nivå 1: Brukes ikke.", "Nivå 2: Til enkelte operasjoner.", "Nivå 3: Integrert i styring.", "Nivå 4: Aktivt verktøy.", "Nivå 5: Driver virksomhet."]},
-        {"id": 18, "title": "Mottaksevne", "question": "Hvordan utvikles mottaksevne?",
-         "scale": ["Nivå 1: Utvikles ikke.", "Nivå 2: Begrenset fokus.", "Nivå 3: Systematisk arbeid.", "Nivå 4: Målrettet utvikling.", "Nivå 5: Høy mottaksevne."]},
-        {"id": 19, "title": "Kommunikasjon", "question": "Hvordan opprettholdes kommunikasjon?",
-         "scale": ["Nivå 1: Avtar.", "Nivå 2: Begrenset.", "Nivå 3: Regelmessig.", "Nivå 4: Systematisk.", "Nivå 5: Kontinuerlig dialog."]},
-        {"id": 20, "title": "Eierskap", "question": "Hvordan utøves eierskap?",
-         "scale": ["Nivå 1: Svekkes.", "Nivå 2: Begrenset.", "Nivå 3: Tydelig.", "Nivå 4: Aktivt.", "Nivå 5: Sterk kultur."]},
-        {"id": 21, "title": "Periodisering", "question": "Hvordan justeres periodisering?",
-         "scale": ["Nivå 1: Justeres ikke.", "Nivå 2: Store justeringer.", "Nivå 3: Regelmessig revisjon.", "Nivå 4: Dynamisk tilpasning.", "Nivå 5: Fleksibel."]},
-        {"id": 22, "title": "Realisme", "question": "Hvordan opprettholdes realisme?",
-         "scale": ["Nivå 1: Avtar.", "Nivå 2: Begrenset fokus.", "Nivå 3: Arbeid med å opprettholde.", "Nivå 4: Systematisk styrking.", "Nivå 5: Høy troverdighet."]},
-        {"id": 23, "title": "Momentum", "question": "Hvordan brukes tidlig gevinstuttak?",
-         "scale": ["Nivå 1: Ingen systematisk.", "Nivå 2: Enkelte suksesser motiverer.", "Nivå 3: Bevissthet på viktighet.", "Nivå 4: Strategisk bruk.", "Nivå 5: Systematisk bygget."]}
+        {
+            "id": 1,
+            "title": "Bruk av tidligere læring og gevinstdata",
+            "question": "Hvordan anvendes læring fra tidligere prosjekter og gevinstarbeid for å optimalisere gevinstuttak under realiseringen?",
+            "scale": [
+                "Nivå 1: Ingen læring anvendt i realiseringsfasen.",
+                "Nivå 2: Enkelte erfaringer tas i betraktning.",
+                "Nivå 3: Systematisk bruk av læring for å optimalisere uttak.",
+                "Nivå 4: Læring integrert i realiseringsprosessen.",
+                "Nivå 5: Kontinuerlig læring og optimalisering under realisering."
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Strategisk retning og gevinstforståelse",
+            "question": "Hvordan sikres strategisk retning og gevinstforståelse under realiseringen?",
+            "scale": [
+                "Nivå 1: Strategisk retning glemmes under realisering.",
+                "Nivå 2: Strategi refereres til, men ikke operasjonalisert.",
+                "Nivå 3: Tydelig strategisk retning i realiseringsarbeid.",
+                "Nivå 4: Strategi dynamisk tilpasses under realisering.",
+                "Nivå 5: Strategi og realisering fullt integrert og sammenvevd."
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Gevinstkart og visualisering",
+            "question": "Hvordan brukes gevinstkartet for å styre realiseringsarbeidet?",
+            "scale": [
+                "Nivå 1: Gevinstkartet brukes ikke under realisering.",
+                "Nivå 2: Gevinstkartet vises, men ikke aktivt brukt.",
+                "Nivå 3: Gevinstkartet brukes til å prioritere realisering.",
+                "Nivå 4: Gevinstkartet er aktivt styringsverktøy.",
+                "Nivå 5: Gevinstkartet dynamisk oppdateres basert på realisering."
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Strategisk kobling og KPI-er",
+            "question": "Hvordan følges opp strategisk kobling og KPI-er under realiseringen?",
+            "scale": [
+                "Nivå 1: Ingen oppfølging av strategisk kobling.",
+                "Nivå 2: KPI-er måles, men kobling til strategi svak.",
+                "Nivå 3: Systematisk oppfølging av strategisk kobling.",
+                "Nivå 4: Dynamisk justering basert på KPI-utvikling.",
+                "Nivå 5: Full integrasjon mellom strategi, KPI-er og realisering."
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Avgrensning av programgevinst",
+            "question": "Hvordan håndteres avgrensning av programgevinster under realiseringen?",
+            "scale": [
+                "Nivå 1: Avgrensning håndteres ikke under realisering.",
+                "Nivå 2: Store avgrensningsutfordringer håndteres.",
+                "Nivå 3: System for å håndtere avgrensning.",
+                "Nivå 4: Proaktiv håndtering av avgrensning.",
+                "Nivå 5: Avgrensning integrert i realiseringsprosessen."
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Nullpunkter og estimater",
+            "question": "Hvordan valideres og justeres nullpunkter og estimater under realiseringen?",
+            "scale": [
+                "Nivå 1: Nullpunkter og estimater valideres ikke.",
+                "Nivå 2: Store avvik håndteres reaktivt.",
+                "Nivå 3: Systematisk validering under realisering.",
+                "Nivå 4: Kontinuerlig justering basert på realisering.",
+                "Nivå 5: Dynamisk oppdatering av nullpunkter og estimater."
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Hypotesetesting og datagrunnlag",
+            "question": "Hvordan valideres hypoteser og datagrunnlag under realiseringen?",
+            "scale": [
+                "Nivå 1: Hypoteser valideres ikke under realisering.",
+                "Nivå 2: Noen hypoteser testes uformelt.",
+                "Nivå 3: Systematisk testing av kritiske hypoteser.",
+                "Nivå 4: Omfattende validering under realisering.",
+                "Nivå 5: Kontinuerlig hypotesetesting og læring."
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Interessentengasjement",
+            "question": "Hvordan opprettholdes interessentengasjement under realiseringen?",
+            "scale": [
+                "Nivå 1: Interessentengasjement avtar under realisering.",
+                "Nivå 2: Begrenset engasjement for viktige beslutninger.",
+                "Nivå 3: Regelmessig dialog med interessenter.",
+                "Nivå 4: Aktivt interessentengasjement gjennom realisering.",
+                "Nivå 5: Interessenter er drivkrefter i realiseringsarbeidet."
+            ]
+        },
+        {
+            "id": 9,
+            "title": "Gevinstforutsetninger",
+            "question": "Hvordan overvåkes og realiseres gevinstforutsetninger under realiseringen?",
+            "scale": [
+                "Nivå 1: Forutsetninger overvåkes ikke under realisering.",
+                "Nivå 2: Noen forutsetninger følges opp.",
+                "Nivå 3: Systematisk overvåkning av forutsetninger.",
+                "Nivå 4: Aktiv realisering av forutsetninger.",
+                "Nivå 5: Forutsetningsrealisering integrert i gevinstuttak."
+            ]
+        },
+        {
+            "id": 10,
+            "title": "Prinsipielle og vilkårsmessige kriterier",
+            "question": "Hvordan håndteres prinsipielle og vilkårsmessige kriterier under realiseringen?",
+            "scale": [
+                "Nivå 1: Kriterier håndteres ikke under realisering.",
+                "Nivå 2: Store avvik fra kriterier håndteres.",
+                "Nivå 3: Systematisk håndtering av kriterier.",
+                "Nivå 4: Proaktiv tilpasning til kriterier.",
+                "Nivå 5: Kriterier integrert i realiseringsbeslutninger."
+            ]
+        },
+        {
+            "id": 11,
+            "title": "Enighet om nullpunkter/estimater",
+            "question": "Hvordan opprettholdes enighet om nullpunkter og estimater under realiseringen?",
+            "scale": [
+                "Nivå 1: Enighet testes ikke under realisering.",
+                "Nivå 2: Enighet bekreftes ved store endringer.",
+                "Nivå 3: Regelmessig bekreftelse av enighet.",
+                "Nivå 4: Kontinuerlig arbeid for å opprettholde enighet.",
+                "Nivå 5: Full enighet gjennom hele realiseringsfasen."
+            ]
+        },
+        {
+            "id": 12,
+            "title": "Disponering av kostnads- og tidsbesparelser",
+            "question": "Hvordan håndteres disponering av besparelser under realiseringen?",
+            "scale": [
+                "Nivå 1: Disponering håndteres ikke under realisering.",
+                "Nivå 2: Store endringer i disponering håndteres.",
+                "Nivå 3: Systematisk revisjon av disponering.",
+                "Nivå 4: Dynamisk tilpasning av disponering.",
+                "Nivå 5: Optimal disponering under realisering."
+            ]
+        },
+        {
+            "id": 13,
+            "title": "Måling av effektivitet og produktivitet",
+            "question": "Hvordan måles og forbedres effektivitet og produktivitet under realiseringen?",
+            "scale": [
+                "Nivå 1: Effektivitet og produktivitet måles ikke.",
+                "Nivå 2: Noen målinger registreres.",
+                "Nivå 3: Systematisk måling og rapportering.",
+                "Nivå 4: Målinger brukes til forbedring.",
+                "Nivå 5: Kontinuerlig forbedring basert på målinger."
+            ]
+        },
+        {
+            "id": 14,
+            "title": "Operasjonell risiko og ulemper",
+            "question": "Hvordan håndteres operasjonelle risikoer og ulemper under realiseringen?",
+            "scale": [
+                "Nivå 1: Risikoer og ulemper håndteres ikke.",
+                "Nivå 2: Store risikoer håndteres reaktivt.",
+                "Nivå 3: Systematisk identifisering og håndtering.",
+                "Nivå 4: Proaktiv risikohåndtering.",
+                "Nivå 5: Risikostyring integrert i realiseringsarbeid."
+            ]
+        },
+        {
+            "id": 15,
+            "title": "Balanse mellom gevinster og ulemper",
+            "question": "Hvordan vurderes balansen mellom gevinster og ulemper under realiseringen?",
+            "scale": [
+                "Nivå 1: Balansen vurderes ikke under realisering.",
+                "Nivå 2: Balansen vurderes ved store endringer.",
+                "Nivå 3: Regelmessig vurdering av balansen.",
+                "Nivå 4: Systematisk overvåkning av balansen.",
+                "Nivå 5: Balansevurdering integrert i beslutninger."
+            ]
+        },
+        {
+            "id": 16,
+            "title": "Dokumentasjon og gevinstrealiseringsplan",
+            "question": "Hvordan brukes gevinstrealiseringsplanen under realiseringen?",
+            "scale": [
+                "Nivå 1: Gevinstrealiseringsplanen brukes ikke.",
+                "Nivå 2: Planen refereres til ved behov.",
+                "Nivå 3: Planen brukes aktivt i realisering.",
+                "Nivå 4: Planen oppdateres og brukes kontinuerlig.",
+                "Nivå 5: Planen er sentralt styringsverktøy."
+            ]
+        },
+        {
+            "id": 17,
+            "title": "Gevinstrealiseringsplan som operativ handlingsplan",
+            "question": "Hvordan fungerer gevinstrealiseringsplanen som operativ handlingsplan under realiseringen?",
+            "scale": [
+                "Nivå 1: Planen brukes ikke som operativ handlingsplan.",
+                "Nivå 2: Planen brukes til enkelte operasjoner.",
+                "Nivå 3: Planen er integrert i operativ styring.",
+                "Nivå 4: Planen er aktivt operativt verktøy.",
+                "Nivå 5: Planen driver operativ virksomhet."
+            ]
+        },
+        {
+            "id": 18,
+            "title": "Endringsberedskap og operativ mottaksevne",
+            "question": "Hvordan utvikles endringsberedskap og mottaksevne under realiseringen?",
+            "scale": [
+                "Nivå 1: Endringsberedskap utvikles ikke.",
+                "Nivå 2: Begrenset fokus på endringsberedskap.",
+                "Nivå 3: Systematisk arbeid med endringsberedskap.",
+                "Nivå 4: Målrettet utvikling av mottaksevne.",
+                "Nivå 5: Høy mottaksevne og endringsberedskap."
+            ]
+        },
+        {
+            "id": 19,
+            "title": "Kommunikasjon og forankring",
+            "question": "Hvordan opprettholdes kommunikasjon og forankring under realiseringen?",
+            "scale": [
+                "Nivå 1: Kommunikasjon avtar under realisering.",
+                "Nivå 2: Begrenset kommunikasjon om realisering.",
+                "Nivå 3: Regelmessig kommunikasjon om fremdrift.",
+                "Nivå 4: Systematisk kommunikasjon om realisering.",
+                "Nivå 5: Kontinuerlig dialog om realiseringsarbeid."
+            ]
+        },
+        {
+            "id": 20,
+            "title": "Eierskap og ansvar",
+            "question": "Hvordan utøves eierskap og ansvar under realiseringen?",
+            "scale": [
+                "Nivå 1: Eierskap og ansvar svekkes.",
+                "Nivå 2: Begrenset eierskap i realiseringsfasen.",
+                "Nivå 3: Tydelig eierskap for realisering.",
+                "Nivå 4: Aktivt utøvd eierskap.",
+                "Nivå 5: Sterk eierskapskultur i realisering."
+            ]
+        },
+        {
+            "id": 21,
+            "title": "Periodisering og forankring",
+            "question": "Hvordan justeres periodisering og forankring under realiseringen?",
+            "scale": [
+                "Nivå 1: Periodisering justeres ikke.",
+                "Nivå 2: Store justeringer i periodisering.",
+                "Nivå 3: Regelmessig revisjon av periodisering.",
+                "Nivå 4: Dynamisk tilpasning av periodisering.",
+                "Nivå 5: Fleksibel periodisering under realisering."
+            ]
+        },
+        {
+            "id": 22,
+            "title": "Realisme og engasjement",
+            "question": "Hvordan opprettholdes realisme og engasjement under realiseringen?",
+            "scale": [
+                "Nivå 1: Realisme og engasjement avtar.",
+                "Nivå 2: Begrenset fokus på å opprettholde engasjement.",
+                "Nivå 3: Arbeid med å opprettholde realisme og engasjement.",
+                "Nivå 4: Systematisk arbeid for å styrke troverdighet.",
+                "Nivå 5: Høy troverdighet og engasjement."
+            ]
+        },
+        {
+            "id": 23,
+            "title": "Bygge momentum og tidlig gevinstuttak",
+            "question": "Hvordan brukes tidlig gevinstuttak for å bygge momentum i realiseringsfasen?",
+            "scale": [
+                "Nivå 1: Ingen systematisk bruk av tidlig gevinstuttak.",
+                "Nivå 2: Enkelte suksesser brukes til å motivere.",
+                "Nivå 3: Bevissthet på viktigheten av momentum.",
+                "Nivå 4: Strategisk bruk av tidlige gevinster.",
+                "Nivå 5: Momentum systematisk bygget og vedlikeholdt."
+            ]
+        }
     ],
     "Realisert": [
-        {"id": 1, "title": "Læringsdokumentasjon", "question": "Hvordan dokumenteres læring for fremtidig bruk?",
-         "scale": ["Nivå 1: Ingen dokumentasjon.", "Nivå 2: Enkelte deles uformelt.", "Nivå 3: Systematisk dokumentasjon.", "Nivå 4: Deles aktivt.", "Nivå 5: Integrert i kunnskapsbase."]},
-        {"id": 2, "title": "Strategisk bidrag", "question": "Hvordan bidro strategisk retning til suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Fullt integrert."]},
-        {"id": 3, "title": "Gevinstkart-bidrag", "question": "Hvordan bidro gevinstkartet til suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Nyttig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Viktig.", "Nivå 5: Avgjørende."]},
-        {"id": 4, "title": "KPI-bidrag", "question": "Hvordan bidro KPI-er til realisering?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Full integrasjon."]},
-        {"id": 5, "title": "Avgrensning-troverdighet", "question": "Hvordan bidro avgrensning til troverdighet?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til troverdighet.", "Nivå 4: Avgjørende.", "Nivå 5: Styrket betydelig."]},
-        {"id": 6, "title": "Estimat-nøyaktighet", "question": "Hvordan bidro estimater til nøyaktighet?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Nøyaktige for enkelte.", "Nivå 3: Nøyaktige for flere.", "Nivå 4: Høy nøyaktighet.", "Nivå 5: Svært nøyaktige."]},
-        {"id": 7, "title": "Testing-kvalitet", "question": "Hvordan bidro hypotesetesting til kvalitet?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til kvalitet.", "Nivå 4: Avgjørende.", "Nivå 5: Styrket betydelig."]},
-        {"id": 8, "title": "Interessent-suksess", "question": "Hvordan bidro interessentengasjement til suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Drivkrefter for suksess."]},
-        {"id": 9, "title": "Forutsetning-suksess", "question": "Hvordan bidro forutsetningshåndtering til suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Suksessfaktor."]},
-        {"id": 10, "title": "Kriterie-realisering", "question": "Hvordan bidro kriteriehåndtering til realisering?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Styrket realisering."]},
-        {"id": 11, "title": "Enighet-suksess", "question": "Hvordan bidro enighet til suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Styrket betydelig."]},
-        {"id": 12, "title": "Disponering-verdi", "question": "Hvordan bidro disponering til verdiskapning?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til verdi.", "Nivå 4: Avgjørende.", "Nivå 5: Maksimerte verdi."]},
-        {"id": 13, "title": "Måling-realisering", "question": "Hvordan bidro måling til realisering?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Drevet realisering."]},
-        {"id": 14, "title": "Risiko-robusthet", "question": "Hvordan bidro risikohåndtering til robusthet?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til robusthet.", "Nivå 4: Avgjørende.", "Nivå 5: Styrket betydelig."]},
-        {"id": 15, "title": "Balanse-bærekraft", "question": "Hvordan bidro balansevurdering til bærekraft?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til bærekraft.", "Nivå 4: Avgjørende.", "Nivå 5: Styrket betydelig."]},
-        {"id": 16, "title": "Plan-suksess", "question": "Hvordan bidro planen til suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Suksessfaktor."]},
-        {"id": 17, "title": "Operativ-suksess", "question": "Hvordan bidro planen som operativ handlingsplan?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Drevet realisering."]},
-        {"id": 18, "title": "Beredskap-realisering", "question": "Hvordan bidro endringsberedskap til realisering?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Høy mottaksevne drevet."]},
-        {"id": 19, "title": "Kommunikasjon-suksess", "question": "Hvordan bidro kommunikasjon til suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Styrket betydelig."]},
-        {"id": 20, "title": "Eierskap-suksess", "question": "Hvordan bidro eierskap til suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til flere.", "Nivå 4: Avgjørende.", "Nivå 5: Drevet suksess."]},
-        {"id": 21, "title": "Periodisering-effektivitet", "question": "Hvordan bidro periodisering til effektivitet?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til effektivitet.", "Nivå 4: Avgjørende.", "Nivå 5: Maksimerte effektivitet."]},
-        {"id": 22, "title": "Realisme-troverdighet", "question": "Hvordan bidro realisme til troverdighet?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til troverdighet.", "Nivå 4: Avgjørende.", "Nivå 5: Styrket realisering."]},
-        {"id": 23, "title": "Momentum-langsiktig", "question": "Hvordan bidro momentum til langsiktig suksess?",
-         "scale": ["Nivå 1: Bidro lite.", "Nivå 2: Viktig for enkelte.", "Nivå 3: Bidro til momentum.", "Nivå 4: Avgjørende.", "Nivå 5: Drevet langsiktig suksess."]}
+        {
+            "id": 1,
+            "title": "Bruk av tidligere læring og gevinstdata",
+            "question": "Hvordan dokumenteres og deles læring fra gevinstrealiseringen for fremtidig bruk?",
+            "scale": [
+                "Nivå 1: Ingen dokumentasjon eller deling av læring.",
+                "Nivå 2: Enkelte erfaringer deles uformelt.",
+                "Nivå 3: Systematisk dokumentasjon av læring.",
+                "Nivå 4: Læring deles og diskuteres i organisasjonen.",
+                "Nivå 5: Læring integrert i organisasjonens kunnskapsbase."
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Strategisk retning og gevinstforståelse",
+            "question": "Hvordan bidro den strategiske retningen til gevinstrealiseringens suksess?",
+            "scale": [
+                "Nivå 1: Strategisk retning bidro lite til suksess.",
+                "Nivå 2: Strategi var viktig for enkelte gevinster.",
+                "Nivå 3: Strategi bidro til flere gevinster.",
+                "Nivå 4: Strategi var avgjørende for gevinstrealisering.",
+                "Nivå 5: Strategi og gevinstrealisering fullt integrert."
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Gevinstkart og visualisering",
+            "question": "Hvordan bidro gevinstkartet til gevinstrealiseringens suksess?",
+            "scale": [
+                "Nivå 1: Gevinstkartet bidro lite til suksess.",
+                "Nivå 2: Kartet var nyttig for enkelte gevinster.",
+                "Nivå 3: Kartet bidro til flere gevinster.",
+                "Nivå 4: Kartet var viktig for gevinstrealisering.",
+                "Nivå 5: Kartet var avgjørende for suksess."
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Strategisk kobling og KPI-er",
+            "question": "Hvordan bidro den strategiske koblingen og KPI-ene til gevinstrealisering?",
+            "scale": [
+                "Nivå 1: Strategisk kobling bidro lite.",
+                "Nivå 2: Kobling var viktig for enkelte gevinster.",
+                "Nivå 3: Kobling bidro til flere gevinster.",
+                "Nivå 4: Kobling var avgjørende for realisering.",
+                "Nivå 5: Full integrasjon mellom strategi og realisering."
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Avgrensning av programgevinst",
+            "question": "Hvordan bidro avgrensningsarbeidet til gevinstrealiseringens troverdighet?",
+            "scale": [
+                "Nivå 1: Avgrensning bidro lite til troverdighet.",
+                "Nivå 2: Avgrensning viktig for enkelte gevinster.",
+                "Nivå 3: Avgrensning bidro til troverdighet for flere gevinster.",
+                "Nivå 4: Avgrensning var avgjørende for troverdighet.",
+                "Nivå 5: Avgrensning styrket troverdighet betydelig."
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Nullpunkter og estimater",
+            "question": "Hvordan bidro nullpunkter og estimater til gevinstrealiseringens nøyaktighet?",
+            "scale": [
+                "Nivå 1: Nullpunkter og estimater bidro lite.",
+                "Nivå 2: Estimater var nøyaktige for enkelte gevinster.",
+                "Nivå 3: Estimater var nøyaktige for flere gevinster.",
+                "Nivå 4: Høy nøyaktighet i estimater.",
+                "Nivå 5: Estimater var svært nøyaktige."
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Hypotesetesting og datagrunnlag",
+            "question": "Hvordan bidro hypotesetesting og datagrunnlag til gevinstrealiseringens kvalitet?",
+            "scale": [
+                "Nivå 1: Testing og datagrunnlag bidro lite.",
+                "Nivå 2: Testing viktig for enkelte gevinster.",
+                "Nivå 3: Testing bidro til kvalitet for flere gevinster.",
+                "Nivå 4: Testing var avgjørende for kvalitet.",
+                "Nivå 5: Testing og datagrunnlag styrket kvalitet betydelig."
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Interessentengasjement",
+            "question": "Hvordan bidro interessentengasjement til gevinstrealiseringens suksess?",
+            "scale": [
+                "Nivå 1: Interessentengasjement bidro lite.",
+                "Nivå 2: Engasjement viktig for enkelte gevinster.",
+                "Nivå 3: Engasjement bidro til flere gevinster.",
+                "Nivå 4: Engasjement var avgjørende for suksess.",
+                "Nivå 5: Interessenter var drivkrefter for suksess."
+            ]
+        },
+        {
+            "id": 9,
+            "title": "Gevinstforutsetninger",
+            "question": "Hvordan bidro håndtering av gevinstforutsetninger til realiseringens suksess?",
+            "scale": [
+                "Nivå 1: Forutsetningshåndtering bidro lite.",
+                "Nivå 2: Håndtering viktig for enkelte gevinster.",
+                "Nivå 3: Håndtering bidro til flere gevinster.",
+                "Nivå 4: Håndtering var avgjørende for suksess.",
+                "Nivå 5: Forutsetningshåndtering var suksessfaktor."
+            ]
+        },
+        {
+            "id": 10,
+            "title": "Prinsipielle og vilkårsmessige kriterier",
+            "question": "Hvordan bidro håndtering av kriterier til gevinstrealisering?",
+            "scale": [
+                "Nivå 1: Kriteriehåndtering bidro lite.",
+                "Nivå 2: Håndtering viktig for enkelte gevinster.",
+                "Nivå 3: Håndtering bidro til flere gevinster.",
+                "Nivå 4: Håndtering var avgjørende for realisering.",
+                "Nivå 5: Kriteriehåndtering styrket realisering."
+            ]
+        },
+        {
+            "id": 11,
+            "title": "Enighet om nullpunkter/estimater",
+            "question": "Hvordan bidro enighet om nullpunkter og estimater til realiseringens suksess?",
+            "scale": [
+                "Nivå 1: Enighet bidro lite til suksess.",
+                "Nivå 2: Enighet viktig for enkelte gevinster.",
+                "Nivå 3: Enighet bidro til flere gevinster.",
+                "Nivå 4: Enighet var avgjørende for suksess.",
+                "Nivå 5: Full enighet styrket suksess betydelig."
+            ]
+        },
+        {
+            "id": 12,
+            "title": "Disponering av kostnads- og tidsbesparelser",
+            "question": "Hvordan bidro disponering av besparelser til gevinstrealiseringens verdiskapning?",
+            "scale": [
+                "Nivå 1: Disponering bidro lite til verdiskapning.",
+                "Nivå 2: Disponering viktig for enkelte gevinster.",
+                "Nivå 3: Disponering bidro til verdi for flere gevinster.",
+                "Nivå 4: Disponering var avgjørende for verdiskapning.",
+                "Nivå 5: Optimal disponering maksimerte verdi."
+            ]
+        },
+        {
+            "id": 13,
+            "title": "Måling av effektivitet og produktivitet",
+            "question": "Hvordan bidro måling av effektivitet og produktivitet til gevinstrealisering?",
+            "scale": [
+                "Nivå 1: Måling bidro lite til realisering.",
+                "Nivå 2: Måling viktig for enkelte gevinster.",
+                "Nivå 3: Måling bidro til flere gevinster.",
+                "Nivå 4: Måling var avgjørende for realisering.",
+                "Nivå 5: Måling drevet gevinstrealisering."
+            ]
+        },
+        {
+            "id": 14,
+            "title": "Operasjonell risiko og ulemper",
+            "question": "Hvordan bidro håndtering av risiko og ulemper til gevinstrealiseringens robusthet?",
+            "scale": [
+                "Nivå 1: Risikohåndtering bidro lite.",
+                "Nivå 2: Håndtering viktig for enkelte gevinster.",
+                "Nivå 3: Håndtering bidro til robusthet for flere gevinster.",
+                "Nivå 4: Håndtering var avgjørende for robusthet.",
+                "Nivå 5: Risikohåndtering styrket robusthet betydelig."
+            ]
+        },
+        {
+            "id": 15,
+            "title": "Balanse mellom gevinster og ulemper",
+            "question": "Hvordan bidro balansevurdering til gevinstrealiseringens bærekraft?",
+            "scale": [
+                "Nivå 1: Balansevurdering bidro lite.",
+                "Nivå 2: Vurdering viktig for enkelte gevinster.",
+                "Nivå 3: Vurdering bidro til bærekraft for flere gevinster.",
+                "Nivå 4: Vurdering var avgjørende for bærekraft.",
+                "Nivå 5: Balansevurdering styrket bærekraft betydelig."
+            ]
+        },
+        {
+            "id": 16,
+            "title": "Dokumentasjon og gevinstrealiseringsplan",
+            "question": "Hvordan bidro gevinstrealiseringsplanen til gevinstrealiseringens suksess?",
+            "scale": [
+                "Nivå 1: Planen bidro lite til suksess.",
+                "Nivå 2: Planen viktig for enkelte gevinster.",
+                "Nivå 3: Planen bidro til flere gevinster.",
+                "Nivå 4: Planen var avgjørende for suksess.",
+                "Nivå 5: Planen var suksessfaktor for realisering."
+            ]
+        },
+        {
+            "id": 17,
+            "title": "Gevinstrealiseringsplan som operativ handlingsplan",
+            "question": "Hvordan bidro gevinstrealiseringsplanen som operativ handlingsplan til suksess?",
+            "scale": [
+                "Nivå 1: Planen som handlingsplan bidro lite.",
+                "Nivå 2: Planen viktig for enkelte operasjoner.",
+                "Nivå 3: Planen bidro til flere operasjoner.",
+                "Nivå 4: Planen var avgjørende for operativ suksess.",
+                "Nivå 5: Planen drevet operativ gevinstrealisering."
+            ]
+        },
+        {
+            "id": 18,
+            "title": "Endringsberedskap og operativ mottaksevne",
+            "question": "Hvordan bidro endringsberedskap og mottaksevne til gevinstrealisering?",
+            "scale": [
+                "Nivå 1: Beredskap og mottaksevne bidro lite.",
+                "Nivå 2: Beredskap viktig for enkelte gevinster.",
+                "Nivå 3: Beredskap bidro til flere gevinster.",
+                "Nivå 4: Beredskap var avgjørende for realisering.",
+                "Nivå 5: Høy mottaksevne drevet realisering."
+            ]
+        },
+        {
+            "id": 19,
+            "title": "Kommunikasjon og forankring",
+            "question": "Hvordan bidro kommunikasjon og forankring til gevinstrealiseringens suksess?",
+            "scale": [
+                "Nivå 1: Kommunikasjon bidro lite til suksess.",
+                "Nivå 2: Kommunikasjon viktig for enkelte gevinster.",
+                "Nivå 3: Kommunikasjon bidro til flere gevinster.",
+                "Nivå 4: Kommunikasjon var avgjørende for suksess.",
+                "Nivå 5: God kommunikasjon styrket suksess betydelig."
+            ]
+        },
+        {
+            "id": 20,
+            "title": "Eierskap og ansvar",
+            "question": "Hvordan bidro eierskap og ansvar til gevinstrealiseringens suksess?",
+            "scale": [
+                "Nivå 1: Eierskap og ansvar bidro lite.",
+                "Nivå 2: Eierskap viktig for enkelte gevinster.",
+                "Nivå 3: Eierskap bidro til flere gevinster.",
+                "Nivå 4: Eierskap var avgjørende for suksess.",
+                "Nivå 5: Sterkt eierskap drevet suksess."
+            ]
+        },
+        {
+            "id": 21,
+            "title": "Periodisering og forankring",
+            "question": "Hvordan bidro periodisering og forankring til gevinstrealiseringens effektivitet?",
+            "scale": [
+                "Nivå 1: Periodisering bidro lite til effektivitet.",
+                "Nivå 2: Periodisering viktig for enkelte gevinster.",
+                "Nivå 3: Periodisering bidro til effektivitet for flere gevinster.",
+                "Nivå 4: Periodisering var avgjørende for effektivitet.",
+                "Nivå 5: God periodisering maksimerte effektivitet."
+            ]
+        },
+        {
+            "id": 22,
+            "title": "Realisme og engasjement",
+            "question": "Hvordan bidro realisme og engasjement til gevinstrealiseringens troverdighet?",
+            "scale": [
+                "Nivå 1: Realisme og engasjement bidro lite.",
+                "Nivå 2: Realisme viktig for enkelte gevinster.",
+                "Nivå 3: Realisme bidro til troverdighet for flere gevinster.",
+                "Nivå 4: Realisme var avgjørende for troverdighet.",
+                "Nivå 5: Høy troverdighet styrket realisering."
+            ]
+        },
+        {
+            "id": 23,
+            "title": "Bygge momentum og tidlig gevinstuttak",
+            "question": "Hvordan bidro arbeid med momentum og tidlig gevinstuttak til langsiktig suksess?",
+            "scale": [
+                "Nivå 1: Momentum og tidlig uttak bidro lite.",
+                "Nivå 2: Tidlig uttak viktig for enkelte gevinster.",
+                "Nivå 3: Tidlig uttak bidro til momentum for flere gevinster.",
+                "Nivå 4: Momentum var avgjørende for suksess.",
+                "Nivå 5: Momentum og tidlig uttak drevet langsiktig suksess."
+            ]
+        }
     ]
 }
 
@@ -586,7 +1505,7 @@ def create_strength_bar_chart(items, max_items=8):
     if not items:
         return None
     items = items[:max_items]
-    labels = [f"{item['phase'][:4]}: {item['title'][:20]}..." if len(item['title']) > 20 else f"{item['phase'][:4]}: {item['title']}" for item in items]
+    labels = [f"{item['phase'][:4]}: {item['title'][:25]}..." if len(item['title']) > 25 else f"{item['phase'][:4]}: {item['title']}" for item in items]
     scores = [item['score'] for item in items]
     fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=COLORS['success'], text=[f"{s:.1f}" for s in scores], textposition='outside')])
     fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score"), yaxis=dict(autorange="reversed"), height=max(250, len(items) * 35), margin=dict(l=200, r=50, t=20, b=40))
@@ -596,21 +1515,22 @@ def create_improvement_bar_chart(items, max_items=8):
     if not items:
         return None
     items = items[:max_items]
-    labels = [f"{item['phase'][:4]}: {item['title'][:20]}..." if len(item['title']) > 20 else f"{item['phase'][:4]}: {item['title']}" for item in items]
+    labels = [f"{item['phase'][:4]}: {item['title'][:25]}..." if len(item['title']) > 25 else f"{item['phase'][:4]}: {item['title']}" for item in items]
     scores = [item['score'] for item in items]
     fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=COLORS['danger'], text=[f"{s:.1f}" for s in scores], textposition='outside')])
     fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score"), yaxis=dict(autorange="reversed"), height=max(250, len(items) * 35), margin=dict(l=200, r=50, t=20, b=40))
     return fig
 
 # ============================================================================
-# RAPPORT-GENERERING
+# RAPPORT-GENERERING - WORD
 # ============================================================================
 def generate_word_report(initiative, stats):
-    """Generer Word-rapport"""
+    """Generer komplett Word-rapport med alle detaljer"""
     try:
         from docx import Document
-        from docx.shared import Pt, Inches
+        from docx.shared import Pt, Inches, RGBColor
         from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_TABLE_ALIGNMENT
         
         doc = Document()
         
@@ -623,51 +1543,153 @@ def generate_word_report(initiative, stats):
         
         doc.add_paragraph()
         
-        # Sammendrag
-        doc.add_heading('Sammendrag', level=1)
-        doc.add_paragraph(f"Endringsinitiativ: {initiative['name']}")
-        doc.add_paragraph(f"Beskrivelse: {initiative.get('description', '-')}")
-        doc.add_paragraph(f"Rapportdato: {datetime.now().strftime('%d.%m.%Y')}")
-        doc.add_paragraph(f"Antall intervjuer: {stats['total_interviews']}")
-        doc.add_paragraph(f"Samlet modenhet: {stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})")
+        # ===== SAMMENDRAG =====
+        doc.add_heading('1. Sammendrag', level=1)
         
-        # Modenhet per fase
+        summary_table = doc.add_table(rows=5, cols=2)
+        summary_table.style = 'Table Grid'
+        cells = [
+            ('Endringsinitiativ', initiative['name']),
+            ('Beskrivelse', initiative.get('description', '-')),
+            ('Rapportdato', datetime.now().strftime('%d.%m.%Y')),
+            ('Antall intervjuer', str(stats['total_interviews'])),
+            ('Samlet modenhet', f"{stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})")
+        ]
+        for i, (label, value) in enumerate(cells):
+            summary_table.rows[i].cells[0].text = label
+            summary_table.rows[i].cells[1].text = value
+        
+        doc.add_paragraph()
+        
+        # ===== MODENHET PER FASE =====
         if stats['phases']:
-            doc.add_heading('Modenhet per fase', level=1)
-            table = doc.add_table(rows=1, cols=2)
+            doc.add_heading('2. Modenhet per fase', level=1)
+            table = doc.add_table(rows=len(stats['phases'])+1, cols=4)
             table.style = 'Table Grid'
-            hdr_cells = table.rows[0].cells
-            hdr_cells[0].text = 'Fase'
-            hdr_cells[1].text = 'Score'
-            for phase, data in stats['phases'].items():
-                row_cells = table.add_row().cells
-                row_cells[0].text = phase
-                row_cells[1].text = f"{data['avg']:.2f}"
+            headers = ['Fase', 'Gjennomsnitt', 'Min', 'Maks']
+            for i, header in enumerate(headers):
+                table.rows[0].cells[i].text = header
+            for i, (phase, data) in enumerate(stats['phases'].items(), 1):
+                table.rows[i].cells[0].text = phase
+                table.rows[i].cells[1].text = f"{data['avg']:.2f}"
+                table.rows[i].cells[2].text = f"{data['min']:.2f}"
+                table.rows[i].cells[3].text = f"{data['max']:.2f}"
+            doc.add_paragraph()
         
-        # Styrkeområder
+        # ===== STYRKEOMRÅDER =====
         if stats['high_maturity']:
-            doc.add_heading('Styrkeområder (score >= 4)', level=1)
-            for item in stats['high_maturity'][:10]:
-                doc.add_paragraph(f"• [{item['phase']}] {item['title']}: {item['score']:.2f}", style='List Bullet')
+            doc.add_heading('3. Styrkeområder (score >= 4)', level=1)
+            for item in stats['high_maturity'][:15]:
+                p = doc.add_paragraph()
+                p.add_run(f"[{item['phase']}] ").bold = True
+                p.add_run(f"{item['title']}: ")
+                p.add_run(f"{item['score']:.2f}").bold = True
+            doc.add_paragraph()
         
-        # Forbedringsområder
+        # ===== FORBEDRINGSOMRÅDER =====
         if stats['low_maturity']:
-            doc.add_heading('Forbedringsområder (score < 3)', level=1)
-            for item in stats['low_maturity'][:10]:
-                doc.add_paragraph(f"• [{item['phase']}] {item['title']}: {item['score']:.2f}", style='List Bullet')
+            doc.add_heading('4. Forbedringsområder (score < 3)', level=1)
+            for item in stats['low_maturity'][:15]:
+                p = doc.add_paragraph()
+                p.add_run(f"[{item['phase']}] ").bold = True
+                p.add_run(f"{item['title']}: ")
+                p.add_run(f"{item['score']:.2f}").bold = True
+            doc.add_paragraph()
         
-        # Parameterresultater
+        # ===== PARAMETERRESULTATER =====
         if stats['parameters']:
-            doc.add_heading('Resultater per parameter', level=1)
-            table = doc.add_table(rows=1, cols=2)
+            doc.add_heading('5. Resultater per parameter', level=1)
+            table = doc.add_table(rows=len(stats['parameters'])+1, cols=3)
             table.style = 'Table Grid'
-            hdr_cells = table.rows[0].cells
-            hdr_cells[0].text = 'Parameter'
-            hdr_cells[1].text = 'Score'
-            for param_name, param_data in stats['parameters'].items():
-                row_cells = table.add_row().cells
-                row_cells[0].text = param_name
-                row_cells[1].text = f"{param_data['avg']:.2f}"
+            table.rows[0].cells[0].text = 'Parameter'
+            table.rows[0].cells[1].text = 'Score'
+            table.rows[0].cells[2].text = 'Beskrivelse'
+            for i, (name, data) in enumerate(stats['parameters'].items(), 1):
+                table.rows[i].cells[0].text = name
+                table.rows[i].cells[1].text = f"{data['avg']:.2f}"
+                table.rows[i].cells[2].text = data['description']
+            doc.add_paragraph()
+        
+        # ===== DETALJERTE RESULTATER PER SPØRSMÅL =====
+        doc.add_heading('6. Detaljerte resultater per spørsmål', level=1)
+        
+        for phase in PHASES:
+            if phase in stats['questions'] and stats['questions'][phase]:
+                doc.add_heading(f'6.{PHASES.index(phase)+1} {phase}', level=2)
+                
+                table = doc.add_table(rows=1, cols=4)
+                table.style = 'Table Grid'
+                table.rows[0].cells[0].text = 'ID'
+                table.rows[0].cells[1].text = 'Spørsmål'
+                table.rows[0].cells[2].text = 'Score'
+                table.rows[0].cells[3].text = 'Antall'
+                
+                for q_id, q_data in sorted(stats['questions'][phase].items()):
+                    row = table.add_row()
+                    row.cells[0].text = str(q_id)
+                    row.cells[1].text = q_data['title']
+                    row.cells[2].text = f"{q_data['avg']:.2f}"
+                    row.cells[3].text = str(q_data['count'])
+                
+                doc.add_paragraph()
+        
+        # ===== INTERVJUOVERSIKT =====
+        doc.add_heading('7. Intervjuoversikt', level=1)
+        
+        if initiative.get('interviews'):
+            table = doc.add_table(rows=1, cols=6)
+            table.style = 'Table Grid'
+            headers = ['Dato', 'Intervjuobjekt', 'Stilling', 'Gevinst', 'Fase', 'Snitt']
+            for i, header in enumerate(headers):
+                table.rows[0].cells[i].text = header
+            
+            for interview in initiative['interviews'].values():
+                info = interview['info']
+                total_answered = sum(1 for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
+                total_score = sum(resp['score'] for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
+                avg = total_score / total_answered if total_answered > 0 else 0
+                
+                row = table.add_row()
+                row.cells[0].text = info.get('date', '')
+                row.cells[1].text = info.get('interviewee', '')
+                row.cells[2].text = info.get('role', '')
+                row.cells[3].text = info.get('benefit_name', 'Generelt')
+                row.cells[4].text = info.get('phase', '')
+                row.cells[5].text = f"{avg:.2f}" if avg > 0 else '-'
+        
+        doc.add_paragraph()
+        
+        # ===== KOMMENTARER FRA INTERVJUER =====
+        doc.add_heading('8. Kommentarer fra intervjuer', level=1)
+        
+        for iid, interview in initiative.get('interviews', {}).items():
+            info = interview['info']
+            doc.add_heading(f"{info.get('interviewee', 'Ukjent')} - {info.get('date', '')}", level=2)
+            doc.add_paragraph(f"Gevinst: {info.get('benefit_name', 'Generelt')} | Fase: {info.get('phase', '')}")
+            
+            has_comments = False
+            for phase, responses in interview.get('responses', {}).items():
+                for q_id, resp in responses.items():
+                    if resp.get('notes', '').strip():
+                        has_comments = True
+                        q_title = ""
+                        for q in questions_data.get(phase, []):
+                            if str(q['id']) == str(q_id):
+                                q_title = q['title']
+                                break
+                        p = doc.add_paragraph()
+                        p.add_run(f"[{phase}] {q_title}: ").bold = True
+                        p.add_run(resp['notes'])
+            
+            if not has_comments:
+                doc.add_paragraph("Ingen kommentarer registrert.")
+            
+            doc.add_paragraph()
+        
+        # Footer
+        doc.add_paragraph()
+        footer = doc.add_paragraph(f"Generert {datetime.now().strftime('%d.%m.%Y %H:%M')} | Bane NOR - Konsern økonomi og digital transformasjon")
+        footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
         # Lagre
         buffer = BytesIO()
@@ -675,71 +1697,172 @@ def generate_word_report(initiative, stats):
         buffer.seek(0)
         return buffer
         
-    except ImportError:
+    except Exception as e:
+        st.error(f"Feil ved generering av Word-rapport: {str(e)}")
         return None
 
+# ============================================================================
+# RAPPORT-GENERERING - PDF
+# ============================================================================
 def generate_pdf_report(initiative, stats):
-    """Generer PDF-rapport via HTML"""
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{ font-family: 'Source Sans Pro', Arial, sans-serif; margin: 40px; color: #172141; }}
-            h1 {{ color: #0053A6; text-align: center; border-bottom: 3px solid #64C8FA; padding-bottom: 10px; }}
-            h2 {{ color: #172141; margin-top: 30px; border-left: 4px solid #0053A6; padding-left: 10px; }}
-            .summary {{ background: #F2FAFD; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-            table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-            th, td {{ border: 1px solid #E8E8E8; padding: 10px; text-align: left; }}
-            th {{ background: #0053A6; color: white; }}
-            .strength {{ color: #35DE6D; }}
-            .improvement {{ color: #FF6B6B; }}
-            .footer {{ text-align: center; margin-top: 40px; color: #666; font-size: 12px; }}
-        </style>
-    </head>
-    <body>
-        <h1>Modenhetsvurdering - Gevinstrealisering</h1>
-        <p style="text-align: center; color: #0053A6;">Bane NOR - Konsern økonomi og digital transformasjon</p>
+    """Generer komplett PDF-rapport"""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
         
-        <div class="summary">
-            <h2>Sammendrag</h2>
-            <p><strong>Endringsinitiativ:</strong> {initiative['name']}</p>
-            <p><strong>Beskrivelse:</strong> {initiative.get('description', '-')}</p>
-            <p><strong>Rapportdato:</strong> {datetime.now().strftime('%d.%m.%Y')}</p>
-            <p><strong>Antall intervjuer:</strong> {stats['total_interviews']}</p>
-            <p><strong>Samlet modenhet:</strong> {stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})</p>
-        </div>
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
         
-        <h2>Modenhet per fase</h2>
-        <table>
-            <tr><th>Fase</th><th>Score</th></tr>
-            {''.join(f"<tr><td>{phase}</td><td>{data['avg']:.2f}</td></tr>" for phase, data in stats['phases'].items())}
-        </table>
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name='CustomTitle', fontSize=20, alignment=TA_CENTER, spaceAfter=10, textColor=colors.HexColor('#172141')))
+        styles.add(ParagraphStyle(name='CustomSubtitle', fontSize=12, alignment=TA_CENTER, spaceAfter=20, textColor=colors.HexColor('#0053A6')))
+        styles.add(ParagraphStyle(name='SectionHeader', fontSize=14, spaceAfter=10, spaceBefore=15, textColor=colors.HexColor('#172141'), fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='SubHeader', fontSize=12, spaceAfter=8, spaceBefore=10, textColor=colors.HexColor('#0053A6'), fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='CustomBody', fontSize=10, spaceAfter=5))
+        styles.add(ParagraphStyle(name='StrengthText', fontSize=10, textColor=colors.HexColor('#35DE6D')))
+        styles.add(ParagraphStyle(name='ImprovementText', fontSize=10, textColor=colors.HexColor('#FF6B6B')))
         
-        <h2>Styrkeområder (score >= 4)</h2>
-        <ul>
-            {''.join(f"<li class='strength'>[{item['phase']}] {item['title']}: {item['score']:.2f}</li>" for item in stats['high_maturity'][:10])}
-        </ul>
+        story = []
         
-        <h2>Forbedringsområder (score < 3)</h2>
-        <ul>
-            {''.join(f"<li class='improvement'>[{item['phase']}] {item['title']}: {item['score']:.2f}</li>" for item in stats['low_maturity'][:10])}
-        </ul>
+        # Tittel
+        story.append(Paragraph('Modenhetsvurdering - Gevinstrealisering', styles['CustomTitle']))
+        story.append(Paragraph('Bane NOR - Konsern økonomi og digital transformasjon', styles['CustomSubtitle']))
+        story.append(Spacer(1, 20))
         
-        <h2>Resultater per parameter</h2>
-        <table>
-            <tr><th>Parameter</th><th>Score</th></tr>
-            {''.join(f"<tr><td>{name}</td><td>{data['avg']:.2f}</td></tr>" for name, data in stats['parameters'].items())}
-        </table>
+        # Sammendrag
+        story.append(Paragraph('1. Sammendrag', styles['SectionHeader']))
+        summary_data = [
+            ['Endringsinitiativ', initiative['name']],
+            ['Beskrivelse', initiative.get('description', '-')],
+            ['Rapportdato', datetime.now().strftime('%d.%m.%Y')],
+            ['Antall intervjuer', str(stats['total_interviews'])],
+            ['Samlet modenhet', f"{stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})"]
+        ]
+        t = Table(summary_data, colWidths=[5*cm, 10*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F2FAFD')),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('PADDING', (0, 0), (-1, -1), 8),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 15))
         
-        <div class="footer">
-            <p>Generert {datetime.now().strftime('%d.%m.%Y %H:%M')} | Bane NOR - Konsern økonomi og digital transformasjon</p>
-        </div>
-    </body>
-    </html>
-    """
-    return html_content
+        # Modenhet per fase
+        if stats['phases']:
+            story.append(Paragraph('2. Modenhet per fase', styles['SectionHeader']))
+            phase_data = [['Fase', 'Gjennomsnitt', 'Min', 'Maks']]
+            for phase, data in stats['phases'].items():
+                phase_data.append([phase, f"{data['avg']:.2f}", f"{data['min']:.2f}", f"{data['max']:.2f}"])
+            t = Table(phase_data, colWidths=[5*cm, 3*cm, 3*cm, 3*cm])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0053A6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+                ('PADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 15))
+        
+        # Styrkeområder
+        if stats['high_maturity']:
+            story.append(Paragraph('3. Styrkeområder (score >= 4)', styles['SectionHeader']))
+            for item in stats['high_maturity'][:15]:
+                story.append(Paragraph(f"<b>[{item['phase']}]</b> {item['title']}: <b>{item['score']:.2f}</b>", styles['StrengthText']))
+            story.append(Spacer(1, 15))
+        
+        # Forbedringsområder
+        if stats['low_maturity']:
+            story.append(Paragraph('4. Forbedringsområder (score < 3)', styles['SectionHeader']))
+            for item in stats['low_maturity'][:15]:
+                story.append(Paragraph(f"<b>[{item['phase']}]</b> {item['title']}: <b>{item['score']:.2f}</b>", styles['ImprovementText']))
+            story.append(Spacer(1, 15))
+        
+        # Parameterresultater
+        if stats['parameters']:
+            story.append(Paragraph('5. Resultater per parameter', styles['SectionHeader']))
+            param_data = [['Parameter', 'Score', 'Beskrivelse']]
+            for name, data in stats['parameters'].items():
+                param_data.append([name, f"{data['avg']:.2f}", data['description'][:50]])
+            t = Table(param_data, colWidths=[4*cm, 2*cm, 8*cm])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0053A6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+                ('PADDING', (0, 0), (-1, -1), 6),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 15))
+        
+        # Detaljerte resultater
+        story.append(PageBreak())
+        story.append(Paragraph('6. Detaljerte resultater per spørsmål', styles['SectionHeader']))
+        
+        for phase in PHASES:
+            if phase in stats['questions'] and stats['questions'][phase]:
+                story.append(Paragraph(f'{phase}', styles['SubHeader']))
+                q_data = [['ID', 'Spørsmål', 'Score', 'Antall']]
+                for q_id, qd in sorted(stats['questions'][phase].items()):
+                    q_data.append([str(q_id), qd['title'][:40], f"{qd['avg']:.2f}", str(qd['count'])])
+                t = Table(q_data, colWidths=[1*cm, 9*cm, 2*cm, 2*cm])
+                t.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#64C8FA')),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+                    ('PADDING', (0, 0), (-1, -1), 4),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ]))
+                story.append(t)
+                story.append(Spacer(1, 10))
+        
+        # Intervjuoversikt
+        story.append(PageBreak())
+        story.append(Paragraph('7. Intervjuoversikt', styles['SectionHeader']))
+        
+        if initiative.get('interviews'):
+            int_data = [['Dato', 'Intervjuobjekt', 'Gevinst', 'Fase', 'Snitt']]
+            for interview in initiative['interviews'].values():
+                info = interview['info']
+                total_answered = sum(1 for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
+                total_score = sum(resp['score'] for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
+                avg = total_score / total_answered if total_answered > 0 else 0
+                int_data.append([
+                    info.get('date', ''),
+                    info.get('interviewee', '')[:20],
+                    info.get('benefit_name', 'Gen.')[:15],
+                    info.get('phase', '')[:10],
+                    f"{avg:.2f}" if avg > 0 else '-'
+                ])
+            t = Table(int_data, colWidths=[2.5*cm, 4*cm, 3.5*cm, 2.5*cm, 2*cm])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0053A6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+                ('PADDING', (0, 0), (-1, -1), 5),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ]))
+            story.append(t)
+        
+        # Footer
+        story.append(Spacer(1, 30))
+        story.append(Paragraph(f"Generert {datetime.now().strftime('%d.%m.%Y %H:%M')} | Bane NOR", styles['CustomSubtitle']))
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+        
+    except Exception as e:
+        st.error(f"Feil ved generering av PDF-rapport: {str(e)}")
+        return None
 
 # ============================================================================
 # HOVEDAPPLIKASJON
@@ -749,7 +1872,7 @@ def main():
     
     # Header
     st.markdown('<h1 class="main-header">Modenhetsvurdering</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">I samarbeid med Konsern økonomi og digital transformasjon</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Bane NOR - Konsern økonomi og digital transformasjon</p>', unsafe_allow_html=True)
     
     # Navigasjon
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Om vurderingen", "Endringsinitiativ", "Intervju", "Resultater", "Rapport"])
@@ -1034,6 +2157,8 @@ def main():
                 st.info("Gjennomfør minst ett intervju først")
             else:
                 st.markdown("### Eksportformat")
+                st.markdown("Rapportene inkluderer sammendrag, diagrammer, alle spørsmål og kommentarer fra intervjuer.")
+                
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -1051,13 +2176,15 @@ def main():
                     if word_buffer:
                         st.download_button("Last ned Word", data=word_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
                     else:
-                        st.warning("Installer python-docx")
+                        st.error("Kunne ikke generere Word-rapport")
                 
                 with col3:
-                    st.markdown("#### PDF (HTML)")
-                    html_content = generate_pdf_report(initiative, stats)
-                    st.download_button("Last ned HTML/PDF", data=html_content, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.html", mime="text/html", use_container_width=True)
-                    st.caption("Åpne i nettleser og skriv ut som PDF")
+                    st.markdown("#### PDF")
+                    pdf_buffer = generate_pdf_report(initiative, stats)
+                    if pdf_buffer:
+                        st.download_button("Last ned PDF", data=pdf_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
+                    else:
+                        st.error("Kunne ikke generere PDF-rapport")
                 
                 st.markdown("---")
                 st.markdown("### Intervjuoversikt")
