@@ -3,41 +3,28 @@ MODENHETSVURDERING - GEVINSTREALISERING
 Gjennomføres i samarbeid med konsern okonomi og digital transformasjon
 """
 
-import subprocess
-import sys
-
-def install_package(package_name):
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name, "-q"])
-        return True
-    except:
-        return False
-
+# Sjekk om python-docx er tilgjengelig
+DOCX_AVAILABLE = False
 try:
     from docx import Document
+    from docx.shared import Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
     DOCX_AVAILABLE = True
 except ImportError:
-    if install_package("python-docx"):
-        try:
-            from docx import Document
-            DOCX_AVAILABLE = True
-        except:
-            DOCX_AVAILABLE = False
-    else:
-        DOCX_AVAILABLE = False
+    pass
 
+# Sjekk om reportlab er tilgjengelig
+REPORTLAB_AVAILABLE = False
 try:
+    from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.enums import TA_CENTER
     REPORTLAB_AVAILABLE = True
 except ImportError:
-    if install_package("reportlab"):
-        try:
-            from reportlab.lib.pagesizes import A4
-            REPORTLAB_AVAILABLE = True
-        except:
-            REPORTLAB_AVAILABLE = False
-    else:
-        REPORTLAB_AVAILABLE = False
+    pass
 
 import streamlit as st
 import pandas as pd
@@ -132,7 +119,7 @@ ROLES = {
             "Realisert": [1, 5, 6, 7, 10, 11, 14, 15, 21]
         }
     },
-    "Styringsgruppemedlem": {
+    "Styringsgruppe": {
         "description": "Overordnet ansvar og beslutninger",
         "recommended_questions": {
             "Planlegging": [2, 4, 8, 14, 16, 19, 20, 21, 22],
@@ -157,6 +144,15 @@ ROLES = {
             "Gjennomføring": [2, 8, 9, 18, 19, 20, 22, 23],
             "Realisering": [1, 2, 8, 9, 18, 19, 20, 22, 23],
             "Realisert": [1, 2, 8, 18, 19, 20, 22, 23]
+        }
+    },
+    "Interessent": {
+        "description": "Personer som opplever endringer og effekter i praksis (f.eks. montører, operatører)",
+        "recommended_questions": {
+            "Planlegging": [8, 9, 12, 13, 18, 19, 22],
+            "Gjennomføring": [8, 9, 12, 13, 18, 19, 22],
+            "Realisering": [8, 9, 12, 13, 18, 19, 20, 22],
+            "Realisert": [8, 12, 13, 18, 19, 20, 22]
         }
     }
 }
@@ -574,10 +570,6 @@ def generate_word_report(initiative, stats):
     if not DOCX_AVAILABLE:
         return None
     try:
-        from docx import Document
-        from docx.shared import Pt
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-        
         doc = Document()
         title = doc.add_heading('Modenhetsvurdering - Gevinstrealisering', 0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -620,7 +612,6 @@ def generate_word_report(initiative, stats):
         buffer.seek(0)
         return buffer
     except Exception as e:
-        st.error(f"Feil ved Word-rapport: {str(e)}")
         return None
 
 # ============================================================================
@@ -630,13 +621,6 @@ def generate_pdf_report(initiative, stats):
     if not REPORTLAB_AVAILABLE:
         return None
     try:
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.enums import TA_CENTER
-        
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
         styles = getSampleStyleSheet()
@@ -670,7 +654,6 @@ def generate_pdf_report(initiative, stats):
         buffer.seek(0)
         return buffer
     except Exception as e:
-        st.error(f"Feil ved PDF-rapport: {str(e)}")
         return None
 
 # ============================================================================
@@ -999,7 +982,7 @@ def main():
                         if word_buffer:
                             st.download_button("Last ned Word", data=word_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
                     else:
-                        st.warning("python-docx ikke installert")
+                        st.info("For Word-rapport, kjor: `pip install python-docx`")
                 
                 with col3:
                     st.markdown("#### PDF")
@@ -1008,7 +991,7 @@ def main():
                         if pdf_buffer:
                             st.download_button("Last ned PDF", data=pdf_buffer, file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
                     else:
-                        st.warning("reportlab ikke installert")
+                        st.info("For PDF-rapport, kjor: `pip install reportlab`")
                 
                 st.markdown("---")
                 st.markdown("#### HTML-rapport")
