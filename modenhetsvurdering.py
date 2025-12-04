@@ -506,7 +506,7 @@ def generate_html_report(initiative, stats):
 </head>
 <body>
     <h1>Modenhetsvurdering - Gevinstrealisering</h1>
-    <p class="subtitle">Bane NOR - Konsern okonomi og digital transformasjon</p>
+    <p class="subtitle">Gjennomføres i samarbeid med konsern okonomi og digital transformasjon</p>
     
     <h2>1. Sammendrag</h2>
     <table>
