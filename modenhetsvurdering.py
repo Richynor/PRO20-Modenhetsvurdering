@@ -1,7 +1,6 @@
 """
 MODENHETSVURDERING - GEVINSTREALISERING
 Gjennomføres i samarbeid med konsern okonomi og digital transformasjon
-
 """
 
 # Sjekk om fpdf er tilgjengelig
@@ -23,7 +22,7 @@ from io import BytesIO
 
 st.set_page_config(
     page_title="Modenhetsvurdering - Bane NOR",
-    page_icon=" ",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -633,6 +632,17 @@ def generate_txt_report(initiative, stats):
 # ============================================================================
 # RAPPORT-GENERERING - PDF (med FPDF)
 # ============================================================================
+def safe_text(text):
+    """Convert Norwegian characters to ASCII for PDF"""
+    replacements = {
+        'æ': 'ae', 'Æ': 'Ae',
+        'ø': 'o', 'Ø': 'O',
+        'å': 'a', 'Å': 'A'
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    return text
+
 def generate_pdf_report(initiative, stats):
     if not FPDF_AVAILABLE:
         return None
@@ -652,10 +662,10 @@ def generate_pdf_report(initiative, stats):
         pdf.set_font('Helvetica', 'B', 14)
         pdf.cell(0, 10, '1. Sammendrag', ln=True)
         pdf.set_font('Helvetica', '', 11)
-        pdf.cell(0, 7, f"Endringsinitiativ: {initiative['name']}", ln=True)
+        pdf.cell(0, 7, safe_text(f"Endringsinitiativ: {initiative['name']}"), ln=True)
         pdf.cell(0, 7, f"Rapportdato: {datetime.now().strftime('%d.%m.%Y')}", ln=True)
         pdf.cell(0, 7, f"Antall intervjuer: {stats['total_interviews']}", ln=True)
-        pdf.cell(0, 7, f"Samlet modenhet: {stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})", ln=True)
+        pdf.cell(0, 7, safe_text(f"Samlet modenhet: {stats['overall_avg']:.2f} ({get_score_text(stats['overall_avg'])})"), ln=True)
         pdf.ln(5)
         
         # Faser
@@ -664,32 +674,41 @@ def generate_pdf_report(initiative, stats):
             pdf.cell(0, 10, '2. Modenhet per fase', ln=True)
             pdf.set_font('Helvetica', '', 11)
             for phase, data in stats['phases'].items():
-                pdf.cell(0, 7, f"  {phase}: {data['avg']:.2f}", ln=True)
+                pdf.cell(0, 7, safe_text(f"  {phase}: {data['avg']:.2f}"), ln=True)
             pdf.ln(5)
         
         # Styrker
         if stats['high_maturity']:
             pdf.set_font('Helvetica', 'B', 14)
-            pdf.cell(0, 10, '3. Styrkeomrader', ln=True)
+            pdf.cell(0, 10, safe_text('3. Styrkeomrader'), ln=True)
             pdf.set_font('Helvetica', '', 10)
             for item in stats['high_maturity'][:8]:
-                text = f"  [{item['phase'][:4]}] {item['title'][:40]}: {item['score']:.2f}"
+                text = safe_text(f"  [{item['phase'][:4]}] {item['title'][:40]}: {item['score']:.2f}")
                 pdf.cell(0, 6, text, ln=True)
             pdf.ln(5)
         
         # Forbedring
         if stats['low_maturity']:
             pdf.set_font('Helvetica', 'B', 14)
-            pdf.cell(0, 10, '4. Forbedringsomrader', ln=True)
+            pdf.cell(0, 10, safe_text('4. Forbedringsomrader'), ln=True)
             pdf.set_font('Helvetica', '', 10)
             for item in stats['low_maturity'][:8]:
-                text = f"  [{item['phase'][:4]}] {item['title'][:40]}: {item['score']:.2f}"
+                text = safe_text(f"  [{item['phase'][:4]}] {item['title'][:40]}: {item['score']:.2f}")
                 pdf.cell(0, 6, text, ln=True)
+            pdf.ln(5)
+        
+        # Parametere
+        if stats['parameters']:
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.cell(0, 10, '5. Resultater per parameter', ln=True)
+            pdf.set_font('Helvetica', '', 10)
+            for name, data in stats['parameters'].items():
+                pdf.cell(0, 6, safe_text(f"  {name}: {data['avg']:.2f}"), ln=True)
             pdf.ln(5)
         
         # Intervjuoversikt (anonymisert)
         pdf.set_font('Helvetica', 'B', 14)
-        pdf.cell(0, 10, '5. Intervjuoversikt (anonymisert)', ln=True)
+        pdf.cell(0, 10, '6. Intervjuoversikt (anonymisert)', ln=True)
         pdf.set_font('Helvetica', '', 10)
         for idx, interview in enumerate(initiative.get('interviews', {}).values()):
             info = interview.get('info', {})
@@ -698,7 +717,7 @@ def generate_pdf_report(initiative, stats):
             avg = total_score / total_answered if total_answered > 0 else 0
             anon_name = get_anonymous_name(idx)
             avg_str = f"{avg:.2f}" if avg > 0 else "-"
-            pdf.cell(0, 6, f"  {anon_name} | {info.get('phase', '-')} | Snitt: {avg_str}", ln=True)
+            pdf.cell(0, 6, safe_text(f"  {anon_name} | {info.get('phase', '-')} | Snitt: {avg_str}"), ln=True)
         
         # Footer
         pdf.ln(10)
@@ -706,8 +725,7 @@ def generate_pdf_report(initiative, stats):
         pdf.cell(0, 10, f"Generert {datetime.now().strftime('%d.%m.%Y %H:%M')} | Bane NOR", ln=True, align='C')
         
         # Return as bytes
-        pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
-        return pdf_output
+        return bytes(pdf.output())
     except Exception as e:
         return None
 
@@ -719,7 +737,7 @@ def main():
     
     st.markdown(f'''
     <div style="text-align:center;margin-bottom:1.5rem;">
-        <h1 style="margin:0;color:{COLORS['primary_dark']};font-size:2rem;font-weight:700;">🚂 Modenhetsvurdering 🚂</h1>
+        <h1 style="margin:0;color:{COLORS['primary_dark']};font-size:2rem;font-weight:700;">Modenhetsvurdering</h1>
         <p style="color:{COLORS['primary']};font-size:0.95rem;margin-top:0.3rem;">Bane NOR - Konsern okonomi og digital transformasjon</p>
     </div>
     ''', unsafe_allow_html=True)
@@ -988,8 +1006,6 @@ def main():
                         fig = create_strength_bar_chart(stats['high_maturity'])
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
-                        for item in stats['high_maturity'][:5]:
-                            st.markdown(f'<div class="strength-card">[{item["phase"]}] {item["title"]}: <strong>{item["score"]:.2f}</strong></div>', unsafe_allow_html=True)
                     else:
                         st.info("Ingen styrkeomrader identifisert")
                 with col2:
@@ -998,8 +1014,6 @@ def main():
                         fig = create_improvement_bar_chart(stats['low_maturity'])
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
-                        for item in stats['low_maturity'][:5]:
-                            st.markdown(f'<div class="improvement-card">[{item["phase"]}] {item["title"]}: <strong>{item["score"]:.2f}</strong></div>', unsafe_allow_html=True)
                     else:
                         st.success("Ingen kritiske forbedringsomrader!")
     
@@ -1067,7 +1081,7 @@ def main():
                     st.dataframe(pd.DataFrame(interview_data), use_container_width=True)
     
     st.markdown("---")
-    st.markdown(f'<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;">Bane NOR - Konsern okonomi og digital transformasjon </div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;">Bane NOR - Konsern okonomi og digital transformasjon</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
