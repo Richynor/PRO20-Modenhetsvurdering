@@ -37,7 +37,7 @@ from io import BytesIO
 
 st.set_page_config(
     page_title="Modenhetsvurdering - Bane NOR",
-    page_icon="🚂",
+    page_icon=" ",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -1011,7 +1011,7 @@ def main():
                     st.dataframe(pd.DataFrame(interview_data), use_container_width=True)
     
     st.markdown("---")
-    st.markdown(f'<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;">🚂 Bane NOR - Konsern okonomi og digital transformasjon 🚂</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;"> Bane NOR - Konsern okonomi og digital transformasjon </div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
