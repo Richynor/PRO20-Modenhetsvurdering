@@ -1,6 +1,5 @@
 """
 MODENHETSVURDERING - GEVINSTREALISERING
-Gjennomføres i samarbeid med konsern okonomi og digital transformasjon
 """
 
 # Sjekk om fpdf er tilgjengelig
@@ -28,6 +27,24 @@ st.set_page_config(
 )
 
 DATA_FILE = "modenhet_data_v5.pkl"
+
+# ============================================================================
+# FLERBRUKER-STØTTE
+# ============================================================================
+import uuid
+
+def get_session_id():
+    """Hent eller opprett en unik session ID for denne brukeren"""
+    if 'session_id' not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())[:8]
+    return st.session_state.session_id
+
+def get_data_file():
+    """Returner datafil for denne sesjonen"""
+    # Bruk felles datafil for alle (standard oppførsel)
+    # For separate filer per bruker, kommenter ut linjen under og bruk session-spesifikk fil
+    return DATA_FILE
+    # return f"modenhet_data_{get_session_id()}.pkl"
 
 COLORS = {
     'primary_dark': '#172141',
@@ -264,9 +281,10 @@ questions_data = {
 # DATALAGRING
 # ============================================================================
 def load_data():
-    if os.path.exists(DATA_FILE):
+    data_file = get_data_file()
+    if os.path.exists(data_file):
         try:
-            with open(DATA_FILE, 'rb') as f:
+            with open(data_file, 'rb') as f:
                 data = pickle.load(f)
                 if 'projects' in data and 'initiatives' not in data:
                     data['initiatives'] = data['projects']
@@ -279,7 +297,8 @@ def load_data():
     return {'initiatives': {}}
 
 def save_data(data):
-    with open(DATA_FILE, 'wb') as f:
+    data_file = get_data_file()
+    with open(data_file, 'wb') as f:
         pickle.dump(data, f)
 
 def get_data():
@@ -447,6 +466,56 @@ def create_parameter_radar(param_data):
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=False, height=400, margin=dict(l=100, r=100, t=40, b=40))
     return fig
 
+def create_strength_radar(items, max_items=8):
+    """Radar chart for strength areas"""
+    if not items or len(items) < 3:
+        return None
+    items = items[:max_items]
+    categories = [f"{item['title'][:20]}..." if len(item['title']) > 20 else item['title'] for item in items]
+    values = [item['score'] for item in items]
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=values + [values[0]], 
+        theta=categories + [categories[0]], 
+        fill='toself', 
+        fillcolor='rgba(53, 222, 109, 0.3)',
+        line=dict(color=COLORS['success'], width=3),
+        name='Styrker'
+    ))
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5])), 
+        showlegend=False, 
+        height=400, 
+        margin=dict(l=80, r=80, t=40, b=40)
+    )
+    return fig
+
+def create_improvement_radar(items, max_items=8):
+    """Radar chart for improvement areas"""
+    if not items or len(items) < 3:
+        return None
+    items = items[:max_items]
+    categories = [f"{item['title'][:20]}..." if len(item['title']) > 20 else item['title'] for item in items]
+    values = [item['score'] for item in items]
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=values + [values[0]], 
+        theta=categories + [categories[0]], 
+        fill='toself', 
+        fillcolor='rgba(255, 107, 107, 0.3)',
+        line=dict(color=COLORS['danger'], width=3),
+        name='Forbedring'
+    ))
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5])), 
+        showlegend=False, 
+        height=400, 
+        margin=dict(l=80, r=80, t=40, b=40)
+    )
+    return fig
+
 def create_strength_bar_chart(items, max_items=8):
     if not items:
         return None
@@ -506,7 +575,7 @@ def generate_html_report(initiative, stats):
 </head>
 <body>
     <h1>Modenhetsvurdering - Gevinstrealisering</h1>
-    <p class="subtitle">Gjennomføres i samarbeid med konsern okonomi og digital transformasjon</p>
+    <p class="subtitle">Gjennomfores i samarbeid med konsern okonomi og digital transformasjon</p>
     
     <h2>1. Sammendrag</h2>
     <table>
@@ -572,7 +641,7 @@ def generate_txt_report(initiative, stats):
     lines = []
     lines.append("=" * 60)
     lines.append("MODENHETSVURDERING - GEVINSTREALISERING")
-    lines.append("Bane NOR - Konsern okonomi og digital transformasjon")
+    lines.append("Gjennomfores i samarbeid med konsern okonomi og digital transformasjon")
     lines.append("=" * 60)
     lines.append("")
     lines.append("1. SAMMENDRAG")
@@ -738,7 +807,7 @@ def main():
     st.markdown(f'''
     <div style="text-align:center;margin-bottom:1.5rem;">
         <h1 style="margin:0;color:{COLORS['primary_dark']};font-size:2rem;font-weight:700;">Modenhetsvurdering</h1>
-        <p style="color:{COLORS['primary']};font-size:0.95rem;margin-top:0.3rem;">Bane NOR - Konsern okonomi og digital transformasjon</p>
+        <p style="color:{COLORS['primary']};font-size:0.95rem;margin-top:0.3rem;">Gjennomfores i samarbeid med konsern okonomi og digital transformasjon</p>
     </div>
     ''', unsafe_allow_html=True)
     
@@ -1003,17 +1072,37 @@ def main():
                 with col1:
                     st.markdown("### Styrkeomrader")
                     if stats['high_maturity']:
-                        fig = create_strength_bar_chart(stats['high_maturity'])
+                        # Radar diagram FØRST
+                        fig = create_strength_radar(stats['high_maturity'])
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            # Fallback til bar chart hvis færre enn 3 items
+                            fig = create_strength_bar_chart(stats['high_maturity'])
+                            if fig:
+                                st.plotly_chart(fig, use_container_width=True)
+                        # Deretter detaljer
+                        st.markdown("#### Detaljer")
+                        for item in stats['high_maturity'][:5]:
+                            st.markdown(f'<div class="strength-card"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>', unsafe_allow_html=True)
                     else:
                         st.info("Ingen styrkeomrader identifisert")
                 with col2:
                     st.markdown("### Forbedringsomrader")
                     if stats['low_maturity']:
-                        fig = create_improvement_bar_chart(stats['low_maturity'])
+                        # Radar diagram FØRST
+                        fig = create_improvement_radar(stats['low_maturity'])
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            # Fallback til bar chart hvis færre enn 3 items
+                            fig = create_improvement_bar_chart(stats['low_maturity'])
+                            if fig:
+                                st.plotly_chart(fig, use_container_width=True)
+                        # Deretter detaljer
+                        st.markdown("#### Detaljer")
+                        for item in stats['low_maturity'][:5]:
+                            st.markdown(f'<div class="improvement-card"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>', unsafe_allow_html=True)
                     else:
                         st.success("Ingen kritiske forbedringsomrader!")
     
@@ -1081,7 +1170,7 @@ def main():
                     st.dataframe(pd.DataFrame(interview_data), use_container_width=True)
     
     st.markdown("---")
-    st.markdown(f'<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;">Bane NOR - Konsern okonomi og digital transformasjon</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;">Gjennomfores i samarbeid med konsern okonomi og digital transformasjon</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
