@@ -1,7 +1,6 @@
 """
 MODENHETSVURDERING - GEVINSTREALISERING
-Bane NOR - Konsern okonomi og digital transformasjon
-Version: Clean (uten ikoner)
+Gjennomføres i samarbeid med konsern okonomi og digital transformasjon
 """
 
 import subprocess
@@ -133,7 +132,7 @@ ROLES = {
             "Realisert": [1, 5, 6, 7, 10, 11, 14, 15, 21]
         }
     },
-    "Sponsor / Styringsgruppe": {
+    "Styringsgruppemedlem": {
         "description": "Overordnet ansvar og beslutninger",
         "recommended_questions": {
             "Planlegging": [2, 4, 8, 14, 16, 19, 20, 21, 22],
