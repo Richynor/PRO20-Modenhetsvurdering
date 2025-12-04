@@ -635,6 +635,61 @@ def generate_html_report(initiative, stats):
         html += f"<tr><td>{anon_name}</td><td>{date_str}</td><td>{benefit_name}</td><td>{phase_str}</td><td>{avg_str}</td></tr>"
     html += "</table>"
     
+    # Seksjon 8: Kommentarer per fase og spørsmål
+    html += "<h2>8. Kommentarer per fase og sporsmal</h2>"
+    html += """<style>
+        .comment-phase { background: #0053A6; color: white; padding: 10px 15px; margin-top: 20px; border-radius: 6px 6px 0 0; }
+        .comment-question { background: #F2FAFD; padding: 10px 15px; border-left: 3px solid #0053A6; margin: 10px 0; }
+        .comment-question h4 { margin: 0 0 10px 0; color: #172141; }
+        .comment-item { background: white; padding: 10px 15px; margin: 8px 0; border-radius: 4px; border: 1px solid #E8E8E8; }
+        .comment-meta { font-size: 0.85em; color: #666; margin-bottom: 5px; }
+        .comment-text { color: #172141; }
+        .score-badge { display: inline-block; background: #64C8FA; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px; }
+    </style>"""
+    
+    has_any_comments = False
+    for phase in PHASES:
+        phase_has_comments = False
+        phase_comments = {}
+        
+        # Samle kommentarer for denne fasen
+        for idx, interview in enumerate(initiative.get('interviews', {}).values()):
+            responses = interview.get('responses', {}).get(phase, {})
+            for q_id, resp in responses.items():
+                notes = resp.get('notes', '').strip()
+                if notes:
+                    if q_id not in phase_comments:
+                        phase_comments[q_id] = []
+                    anon_name = get_anonymous_name(idx)
+                    phase_comments[q_id].append({
+                        'participant': anon_name,
+                        'score': resp.get('score', 0),
+                        'notes': notes
+                    })
+                    phase_has_comments = True
+                    has_any_comments = True
+        
+        if phase_has_comments:
+            html += f'<div class="comment-phase"><strong>{phase}</strong></div>'
+            
+            # Finn spørsmålstitler
+            phase_questions = {str(q['id']): q['title'] for q in questions_data.get(phase, [])}
+            
+            for q_id in sorted(phase_comments.keys(), key=lambda x: int(x)):
+                q_title = phase_questions.get(q_id, f"Sporsmal {q_id}")
+                html += f'<div class="comment-question"><h4>{q_id}. {q_title}</h4>'
+                
+                for comment in phase_comments[q_id]:
+                    html += f'''<div class="comment-item">
+                        <div class="comment-meta">{comment['participant']} <span class="score-badge">Niva {comment['score']}</span></div>
+                        <div class="comment-text">{comment['notes']}</div>
+                    </div>'''
+                
+                html += '</div>'
+    
+    if not has_any_comments:
+        html += '<p style="color: #666; font-style: italic;">Ingen kommentarer registrert.</p>'
+    
     html += f'<div class="footer">Generert {datetime.now().strftime("%d.%m.%Y %H:%M")} | Bane NOR</div></body></html>'
     return html
 
@@ -695,6 +750,60 @@ def generate_txt_report(initiative, stats):
         anon_name = get_anonymous_name(idx)
         avg_str = f"{avg:.2f}" if avg > 0 else "-"
         lines.append(f"  {anon_name} | {info.get('date', '-')} | {info.get('benefit_name', 'Generelt')} | {info.get('phase', '-')} | Snitt: {avg_str}")
+    lines.append("")
+    
+    # Seksjon 7: Kommentarer
+    lines.append("7. KOMMENTARER PER FASE OG SPORSMAL")
+    lines.append("-" * 40)
+    has_any_comments = False
+    
+    for phase in PHASES:
+        phase_comments = {}
+        
+        for idx, interview in enumerate(initiative.get('interviews', {}).values()):
+            responses = interview.get('responses', {}).get(phase, {})
+            for q_id, resp in responses.items():
+                notes = resp.get('notes', '').strip()
+                if notes:
+                    if q_id not in phase_comments:
+                        phase_comments[q_id] = []
+                    anon_name = get_anonymous_name(idx)
+                    phase_comments[q_id].append({
+                        'participant': anon_name,
+                        'score': resp.get('score', 0),
+                        'notes': notes
+                    })
+                    has_any_comments = True
+        
+        if phase_comments:
+            lines.append("")
+            lines.append(f"  [{phase}]")
+            lines.append("  " + "~" * 30)
+            
+            phase_questions = {str(q['id']): q['title'] for q in questions_data.get(phase, [])}
+            
+            for q_id in sorted(phase_comments.keys(), key=lambda x: int(x)):
+                q_title = phase_questions.get(q_id, f"Sporsmal {q_id}")
+                lines.append(f"    {q_id}. {q_title}")
+                
+                for comment in phase_comments[q_id]:
+                    lines.append(f"      - {comment['participant']} (Niva {comment['score']}):")
+                    # Bryt opp lange kommentarer
+                    words = comment['notes'].split()
+                    line = "        "
+                    for word in words:
+                        if len(line) + len(word) + 1 > 70:
+                            lines.append(line)
+                            line = "        " + word
+                        else:
+                            line = line + " " + word if line.strip() else "        " + word
+                    if line.strip():
+                        lines.append(line)
+                lines.append("")
+    
+    if not has_any_comments:
+        lines.append("  Ingen kommentarer registrert.")
+    
     lines.append("")
     lines.append("=" * 60)
     lines.append(f"Generert {datetime.now().strftime('%d.%m.%Y %H:%M')} | Bane NOR")
