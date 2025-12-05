@@ -30,7 +30,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-DATA_FILE = "modenhet_data_v5.pkl"
+DATA_FILE = "modenhet_data.pkl"
 
 # ============================================================================
 # FLERBRUKER-STØTTE
@@ -793,7 +793,8 @@ def generate_html_report(initiative, stats):
         total_score = sum(resp.get('score', 0) for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
         avg = total_score / total_answered if total_answered > 0 else 0
         anon_name = get_anonymous_name(idx)
-        html += f"<tr><td>{anon_name}</td><td>{info.get('date', '-')}</td><td>{info.get('benefit_name', 'Generelt')}</td><td>{info.get('phase', '-')}</td><td>{avg:.2f if avg > 0 else '-'}</td></tr>"
+        avg_str = f"{avg:.2f}" if avg > 0 else "-"
+        html += f"<tr><td>{anon_name}</td><td>{info.get('date', '-')}</td><td>{info.get('benefit_name', 'Generelt')}</td><td>{info.get('phase', '-')}</td><td>{avg_str}</td></tr>"
     html += "</table>"
     
     # DEL 2: Resultater per gevinst
@@ -1743,7 +1744,7 @@ def show_main_app(data, current_project_id):
                 st.dataframe(pd.DataFrame(interview_data), use_container_width=True)
     
     st.markdown("---")
-    st.markdown(f'<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;">Gjennomfores i samarbeid med konsern okonomi og digital transformasjon</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center;color:#666;font-size:0.85rem;padding:10px 0;">Gevinstmodenhetsvurdering på tvers av endringsinitiativer</div>', unsafe_allow_html=True)
 
 def main():
     """Hovedfunksjon - håndterer prosjektvalg og hovedapplikasjon"""
