@@ -556,32 +556,140 @@ def get_anonymous_name(index):
     return f"Deltaker {index + 1}"
 
 def generate_html_report(initiative, stats):
+    """Genererer HTML-rapport med embedded radar-diagrammer og per-gevinst resultater"""
+    
+    # Hjelpefunksjon for å lage SVG radar chart
+    def create_svg_radar(categories, values, color, title="", width=400, height=350):
+        if len(categories) < 3:
+            return ""
+        
+        import math
+        cx, cy = width // 2, height // 2
+        radius = min(width, height) // 2 - 60
+        n = len(categories)
+        
+        # Start SVG
+        svg = f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">'
+        
+        # Bakgrunnsirkler
+        for r in [0.2, 0.4, 0.6, 0.8, 1.0]:
+            svg += f'<circle cx="{cx}" cy="{cy}" r="{radius * r}" fill="none" stroke="#E8E8E8" stroke-width="1"/>'
+        
+        # Linjer fra sentrum
+        for i in range(n):
+            angle = (2 * math.pi * i / n) - math.pi / 2
+            x = cx + radius * math.cos(angle)
+            y = cy + radius * math.sin(angle)
+            svg += f'<line x1="{cx}" y1="{cy}" x2="{x}" y2="{y}" stroke="#E8E8E8" stroke-width="1"/>'
+        
+        # Data polygon
+        points = []
+        for i, val in enumerate(values):
+            angle = (2 * math.pi * i / n) - math.pi / 2
+            r = (val / 5) * radius
+            x = cx + r * math.cos(angle)
+            y = cy + r * math.sin(angle)
+            points.append(f"{x},{y}")
+        
+        svg += f'<polygon points="{" ".join(points)}" fill="{color}" fill-opacity="0.3" stroke="{color}" stroke-width="2"/>'
+        
+        # Labels
+        for i, cat in enumerate(categories):
+            angle = (2 * math.pi * i / n) - math.pi / 2
+            x = cx + (radius + 35) * math.cos(angle)
+            y = cy + (radius + 35) * math.sin(angle)
+            # Forkorte lange labels
+            label = cat[:18] + "..." if len(cat) > 18 else cat
+            anchor = "middle"
+            if angle > math.pi / 4 and angle < 3 * math.pi / 4:
+                anchor = "start"
+            elif angle > -3 * math.pi / 4 and angle < -math.pi / 4:
+                anchor = "start"
+            svg += f'<text x="{x}" y="{y}" text-anchor="middle" font-size="10" fill="#172141">{label}</text>'
+        
+        # Tittel
+        if title:
+            svg += f'<text x="{cx}" y="20" text-anchor="middle" font-size="14" font-weight="bold" fill="#172141">{title}</text>'
+        
+        svg += '</svg>'
+        return svg
+    
+    # Hjelpefunksjon for å lage bar chart SVG
+    def create_svg_bar(items, color, title="", width=450, max_items=8):
+        if not items:
+            return ""
+        items = items[:max_items]
+        bar_height = 28
+        height = len(items) * (bar_height + 8) + 60
+        
+        svg = f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">'
+        
+        if title:
+            svg += f'<text x="10" y="20" font-size="14" font-weight="bold" fill="#172141">{title}</text>'
+        
+        y_offset = 40
+        for i, item in enumerate(items):
+            y = y_offset + i * (bar_height + 8)
+            bar_width = (item['score'] / 5) * (width - 180)
+            label = item['title'][:25] + "..." if len(item['title']) > 25 else item['title']
+            
+            svg += f'<text x="10" y="{y + 18}" font-size="11" fill="#172141">{label}</text>'
+            svg += f'<rect x="170" y="{y}" width="{bar_width}" height="{bar_height}" fill="{color}" rx="4"/>'
+            svg += f'<text x="{175 + bar_width}" y="{y + 18}" font-size="11" fill="#172141">{item["score"]:.1f}</text>'
+        
+        svg += '</svg>'
+        return svg
+
+    # Start HTML
     html = f"""<!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <title>Modenhetsvurdering - {initiative['name']}</title>
     <style>
-        body {{ font-family: 'Source Sans Pro', sans-serif; padding: 40px; max-width: 1000px; margin: 0 auto; color: #172141; line-height: 1.6; }}
-        h1 {{ color: #172141; text-align: center; }}
-        h2 {{ color: #0053A6; border-bottom: 2px solid #64C8FA; padding-bottom: 5px; }}
-        h3 {{ color: #0053A6; }}
+        body {{ font-family: 'Source Sans Pro', Arial, sans-serif; padding: 40px; max-width: 1200px; margin: 0 auto; color: #172141; line-height: 1.6; }}
+        h1 {{ color: #172141; text-align: center; margin-bottom: 5px; }}
+        h2 {{ color: #0053A6; border-bottom: 2px solid #64C8FA; padding-bottom: 8px; margin-top: 40px; }}
+        h3 {{ color: #0053A6; margin-top: 25px; }}
+        h4 {{ color: #172141; margin-top: 20px; }}
         .subtitle {{ text-align: center; color: #0053A6; margin-bottom: 30px; }}
         table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
         th {{ background: #0053A6; color: white; padding: 10px; text-align: left; }}
         td {{ padding: 8px 10px; border-bottom: 1px solid #E8E8E8; }}
         tr:nth-child(even) {{ background: #F2FAFD; }}
+        .metric-row {{ display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }}
+        .metric-card {{ flex: 1; min-width: 150px; background: #F2FAFD; padding: 15px; border-radius: 8px; border-left: 4px solid #0053A6; text-align: center; }}
+        .metric-value {{ font-size: 2rem; font-weight: 700; color: #0053A6; }}
+        .metric-label {{ font-size: 0.85rem; color: #666; text-transform: uppercase; }}
+        .charts-row {{ display: flex; gap: 30px; margin: 20px 0; flex-wrap: wrap; justify-content: center; }}
+        .chart-container {{ flex: 1; min-width: 350px; max-width: 500px; text-align: center; }}
         .item {{ padding: 8px 12px; margin: 5px 0; border-radius: 6px; }}
         .item-strength {{ background: #DDFAE2; border-left: 4px solid #35DE6D; }}
         .item-improvement {{ background: rgba(255, 107, 107, 0.15); border-left: 4px solid #FF6B6B; }}
+        .benefit-section {{ background: #F8F9FA; padding: 25px; margin: 30px 0; border-radius: 10px; border: 1px solid #E8E8E8; }}
+        .benefit-header {{ background: #0053A6; color: white; padding: 15px 20px; margin: -25px -25px 20px -25px; border-radius: 10px 10px 0 0; }}
+        .comment-phase {{ background: #64C8FA; color: white; padding: 10px 15px; margin-top: 20px; border-radius: 6px 6px 0 0; }}
+        .comment-question {{ background: #F2FAFD; padding: 10px 15px; border-left: 3px solid #0053A6; margin: 10px 0; }}
+        .comment-question h4 {{ margin: 0 0 10px 0; color: #172141; font-size: 0.95rem; }}
+        .comment-item {{ background: white; padding: 10px 15px; margin: 8px 0; border-radius: 4px; border: 1px solid #E8E8E8; }}
+        .comment-meta {{ font-size: 0.85em; color: #666; margin-bottom: 5px; }}
+        .comment-text {{ color: #172141; font-size: 0.95rem; }}
+        .score-badge {{ display: inline-block; background: #64C8FA; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px; }}
         .footer {{ text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E8E8E8; color: #666; }}
+        .page-break {{ page-break-before: always; }}
+        @media print {{
+            .page-break {{ page-break-before: always; }}
+            body {{ padding: 20px; }}
+        }}
     </style>
 </head>
 <body>
     <h1>Modenhetsvurdering - Gevinstrealisering</h1>
     <p class="subtitle">Gjennomfores i samarbeid med konsern okonomi og digital transformasjon</p>
     
-    <h2>1. Sammendrag</h2>
+    <h2>DEL 1: Overordnede resultater</h2>
+    
+    <h3>1.1 Sammendrag</h3>
     <table>
         <tr><td><strong>Endringsinitiativ</strong></td><td>{initiative['name']}</td></tr>
         <tr><td><strong>Beskrivelse</strong></td><td>{initiative.get('description', '-')}</td></tr>
@@ -589,108 +697,325 @@ def generate_html_report(initiative, stats):
         <tr><td><strong>Antall intervjuer</strong></td><td>{stats['total_interviews']}</td></tr>
         <tr><td><strong>Samlet modenhet</strong></td><td><strong>{stats['overall_avg']:.2f}</strong> ({get_score_text(stats['overall_avg'])})</td></tr>
     </table>
+    
+    <div class="metric-row">
+        <div class="metric-card">
+            <div class="metric-value">{stats['total_interviews']}</div>
+            <div class="metric-label">Intervjuer</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {'#35DE6D' if stats['overall_avg'] >= 3.5 else '#FFA040' if stats['overall_avg'] >= 2.5 else '#FF6B6B'}">{stats['overall_avg']:.2f}</div>
+            <div class="metric-label">Gjennomsnitt</div>
+        </div>
+        <div class="metric-card" style="border-left-color: #35DE6D;">
+            <div class="metric-value" style="color: #35DE6D;">{len(stats['high_maturity'])}</div>
+            <div class="metric-label">Styrkeomrader</div>
+        </div>
+        <div class="metric-card" style="border-left-color: #FF6B6B;">
+            <div class="metric-value" style="color: #FF6B6B;">{len(stats['low_maturity'])}</div>
+            <div class="metric-label">Forbedringsomrader</div>
+        </div>
+    </div>
 """
     
+    # Fase og parameter diagrammer
     if stats['phases']:
-        html += "<h2>2. Modenhet per fase</h2><table><tr><th>Fase</th><th>Gjennomsnitt</th><th>Min</th><th>Maks</th></tr>"
+        html += "<h3>1.2 Modenhet per fase</h3>"
+        html += "<table><tr><th>Fase</th><th>Gjennomsnitt</th><th>Min</th><th>Maks</th></tr>"
         for phase, data in stats['phases'].items():
             html += f"<tr><td>{phase}</td><td><strong>{data['avg']:.2f}</strong></td><td>{data['min']:.2f}</td><td>{data['max']:.2f}</td></tr>"
         html += "</table>"
+        
+        # Fase radar
+        if len(stats['phases']) >= 3:
+            phase_cats = list(stats['phases'].keys())
+            phase_vals = [stats['phases'][p]['avg'] for p in phase_cats]
+            html += '<div class="charts-row">'
+            html += '<div class="chart-container">'
+            html += create_svg_radar(phase_cats, phase_vals, '#0053A6', 'Modenhet per fase')
+            html += '</div>'
+            
+            # Parameter radar
+            if stats['parameters'] and len(stats['parameters']) >= 3:
+                param_cats = list(stats['parameters'].keys())
+                param_vals = [stats['parameters'][p]['avg'] for p in param_cats]
+                html += '<div class="chart-container">'
+                html += create_svg_radar(param_cats, param_vals, '#64C8FA', 'Modenhet per parameter')
+                html += '</div>'
+            html += '</div>'
+    
+    # Styrker og forbedringer med diagrammer
+    html += "<h3>1.3 Styrkeomrader og forbedringsomrader</h3>"
+    html += '<div class="charts-row">'
     
     if stats['high_maturity']:
-        html += "<h2>3. Styrkeomrader (score >= 4)</h2>"
-        for item in stats['high_maturity'][:15]:
+        html += '<div class="chart-container">'
+        if len(stats['high_maturity']) >= 3:
+            strength_cats = [item['title'][:20] for item in stats['high_maturity'][:8]]
+            strength_vals = [item['score'] for item in stats['high_maturity'][:8]]
+            html += create_svg_radar(strength_cats, strength_vals, '#35DE6D', 'Styrkeomrader')
+        html += '</div>'
+    
+    if stats['low_maturity']:
+        html += '<div class="chart-container">'
+        if len(stats['low_maturity']) >= 3:
+            improve_cats = [item['title'][:20] for item in stats['low_maturity'][:8]]
+            improve_vals = [item['score'] for item in stats['low_maturity'][:8]]
+            html += create_svg_radar(improve_cats, improve_vals, '#FF6B6B', 'Forbedringsomrader')
+        html += '</div>'
+    html += '</div>'
+    
+    # Detaljer
+    if stats['high_maturity']:
+        html += "<h4>Styrkeomrader (score >= 4)</h4>"
+        for item in stats['high_maturity'][:10]:
             html += f'<div class="item item-strength"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>'
     
     if stats['low_maturity']:
-        html += "<h2>4. Forbedringsomrader (score < 3)</h2>"
-        for item in stats['low_maturity'][:15]:
+        html += "<h4>Forbedringsomrader (score < 3)</h4>"
+        for item in stats['low_maturity'][:10]:
             html += f'<div class="item item-improvement"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>'
     
+    # Parameter resultater
     if stats['parameters']:
-        html += "<h2>5. Resultater per parameter</h2><table><tr><th>Parameter</th><th>Score</th><th>Beskrivelse</th></tr>"
+        html += "<h3>1.4 Resultater per parameter</h3>"
+        html += "<table><tr><th>Parameter</th><th>Score</th><th>Beskrivelse</th></tr>"
         for name, data in stats['parameters'].items():
             html += f"<tr><td>{name}</td><td><strong>{data['avg']:.2f}</strong></td><td>{data['description']}</td></tr>"
         html += "</table>"
     
-    html += "<h2>6. Detaljerte resultater per sporsmal</h2>"
-    for phase in PHASES:
-        if phase in stats['questions'] and stats['questions'][phase]:
-            html += f"<h3>{phase}</h3><table><tr><th>ID</th><th>Sporsmal</th><th>Score</th><th>Antall</th></tr>"
-            for q_id, q_data in sorted(stats['questions'][phase].items()):
-                html += f"<tr><td>{q_id}</td><td>{q_data['title']}</td><td><strong>{q_data['avg']:.2f}</strong></td><td>{q_data['count']}</td></tr>"
-            html += "</table>"
-    
-    html += "<h2>7. Intervjuoversikt (anonymisert)</h2><table><tr><th>Deltaker</th><th>Dato</th><th>Gevinst</th><th>Fase</th><th>Snitt</th></tr>"
+    # Intervjuoversikt
+    html += "<h3>1.5 Intervjuoversikt (anonymisert)</h3>"
+    html += "<table><tr><th>Deltaker</th><th>Dato</th><th>Gevinst</th><th>Fase</th><th>Snitt</th></tr>"
     for idx, interview in enumerate(initiative.get('interviews', {}).values()):
         info = interview.get('info', {})
         total_answered = sum(1 for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
         total_score = sum(resp.get('score', 0) for phase in interview.get('responses', {}).values() for resp in phase.values() if resp.get('score', 0) > 0)
         avg = total_score / total_answered if total_answered > 0 else 0
         anon_name = get_anonymous_name(idx)
-        date_str = info.get('date', '-')
-        benefit_name = info.get('benefit_name', 'Generelt')
-        phase_str = info.get('phase', '-')
-        avg_str = f"{avg:.2f}" if avg > 0 else "-"
-        html += f"<tr><td>{anon_name}</td><td>{date_str}</td><td>{benefit_name}</td><td>{phase_str}</td><td>{avg_str}</td></tr>"
+        html += f"<tr><td>{anon_name}</td><td>{info.get('date', '-')}</td><td>{info.get('benefit_name', 'Generelt')}</td><td>{info.get('phase', '-')}</td><td>{avg:.2f if avg > 0 else '-'}</td></tr>"
     html += "</table>"
     
-    # Seksjon 8: Kommentarer per fase og spørsmål
-    html += "<h2>8. Kommentarer per fase og sporsmal</h2>"
-    html += """<style>
-        .comment-phase { background: #0053A6; color: white; padding: 10px 15px; margin-top: 20px; border-radius: 6px 6px 0 0; }
-        .comment-question { background: #F2FAFD; padding: 10px 15px; border-left: 3px solid #0053A6; margin: 10px 0; }
-        .comment-question h4 { margin: 0 0 10px 0; color: #172141; }
-        .comment-item { background: white; padding: 10px 15px; margin: 8px 0; border-radius: 4px; border: 1px solid #E8E8E8; }
-        .comment-meta { font-size: 0.85em; color: #666; margin-bottom: 5px; }
-        .comment-text { color: #172141; }
-        .score-badge { display: inline-block; background: #64C8FA; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px; }
-    </style>"""
+    # DEL 2: Resultater per gevinst
+    html += '<div class="page-break"></div>'
+    html += "<h2>DEL 2: Resultater per gevinst</h2>"
     
-    has_any_comments = False
-    for phase in PHASES:
-        phase_has_comments = False
-        phase_comments = {}
+    # Samle gevinster
+    benefits = initiative.get('benefits', {})
+    benefit_interviews = {}  # benefit_id -> list of interviews
+    general_interviews = []  # Intervjuer uten spesifikk gevinst
+    
+    for idx, (iid, interview) in enumerate(initiative.get('interviews', {}).items()):
+        benefit_id = interview.get('info', {}).get('benefit_id', 'all')
+        if benefit_id == 'all' or benefit_id not in benefits:
+            general_interviews.append((idx, iid, interview))
+        else:
+            if benefit_id not in benefit_interviews:
+                benefit_interviews[benefit_id] = []
+            benefit_interviews[benefit_id].append((idx, iid, interview))
+    
+    # Hjelpefunksjon for å vise kommentarer for en gruppe intervjuer
+    def render_comments_section(interviews_list, section_title="Kommentarer"):
+        comments_html = ""
+        has_any_comments = False
         
-        # Samle kommentarer for denne fasen
-        for idx, interview in enumerate(initiative.get('interviews', {}).values()):
-            responses = interview.get('responses', {}).get(phase, {})
-            for q_id, resp in responses.items():
-                notes = resp.get('notes', '').strip()
-                if notes:
-                    if q_id not in phase_comments:
-                        phase_comments[q_id] = []
-                    anon_name = get_anonymous_name(idx)
-                    phase_comments[q_id].append({
-                        'participant': anon_name,
-                        'score': resp.get('score', 0),
-                        'notes': notes
-                    })
-                    phase_has_comments = True
-                    has_any_comments = True
+        for phase in PHASES:
+            phase_comments = {}
+            
+            for idx, iid, interview in interviews_list:
+                responses = interview.get('responses', {}).get(phase, {})
+                for q_id, resp in responses.items():
+                    notes = resp.get('notes', '').strip()
+                    if notes:
+                        if q_id not in phase_comments:
+                            phase_comments[q_id] = []
+                        anon_name = get_anonymous_name(idx)
+                        phase_comments[q_id].append({
+                            'participant': anon_name,
+                            'score': resp.get('score', 0),
+                            'notes': notes
+                        })
+                        has_any_comments = True
+            
+            if phase_comments:
+                comments_html += f'<div class="comment-phase"><strong>{phase}</strong></div>'
+                phase_questions = {str(q['id']): q['title'] for q in questions_data.get(phase, [])}
+                
+                for q_id in sorted(phase_comments.keys(), key=lambda x: int(x)):
+                    q_title = phase_questions.get(q_id, f"Sporsmal {q_id}")
+                    comments_html += f'<div class="comment-question"><h4>{q_id}. {q_title}</h4>'
+                    
+                    for comment in phase_comments[q_id]:
+                        comments_html += f'''<div class="comment-item">
+                            <div class="comment-meta">{comment['participant']} <span class="score-badge">Niva {comment['score']}</span></div>
+                            <div class="comment-text">{comment['notes']}</div>
+                        </div>'''
+                    
+                    comments_html += '</div>'
         
-        if phase_has_comments:
-            html += f'<div class="comment-phase"><strong>{phase}</strong></div>'
-            
-            # Finn spørsmålstitler
-            phase_questions = {str(q['id']): q['title'] for q in questions_data.get(phase, [])}
-            
-            for q_id in sorted(phase_comments.keys(), key=lambda x: int(x)):
-                q_title = phase_questions.get(q_id, f"Sporsmal {q_id}")
-                html += f'<div class="comment-question"><h4>{q_id}. {q_title}</h4>'
-                
-                for comment in phase_comments[q_id]:
-                    html += f'''<div class="comment-item">
-                        <div class="comment-meta">{comment['participant']} <span class="score-badge">Niva {comment['score']}</span></div>
-                        <div class="comment-text">{comment['notes']}</div>
-                    </div>'''
-                
-                html += '</div>'
+        if has_any_comments:
+            return f"<h4>{section_title}</h4>" + comments_html
+        return ""
     
-    if not has_any_comments:
-        html += '<p style="color: #666; font-style: italic;">Ingen kommentarer registrert.</p>'
+    # Hjelpefunksjon for å beregne stats for en gruppe intervjuer
+    def calculate_benefit_stats(interviews_list):
+        if not interviews_list:
+            return None
+        
+        all_scores = {}
+        for phase in PHASES:
+            all_scores[phase] = {}
+            for q in questions_data[phase]:
+                all_scores[phase][q['id']] = []
+        
+        for idx, iid, interview in interviews_list:
+            for phase, questions in interview.get('responses', {}).items():
+                for q_id, resp in questions.items():
+                    if resp.get('score', 0) > 0:
+                        all_scores[phase][int(q_id)].append(resp['score'])
+        
+        benefit_stats = {
+            'phases': {},
+            'questions': {},
+            'parameters': {},
+            'total_interviews': len(interviews_list),
+            'overall_avg': 0,
+            'high_maturity': [],
+            'low_maturity': []
+        }
+        
+        all_avgs = []
+        for phase in PHASES:
+            phase_scores = []
+            benefit_stats['questions'][phase] = {}
+            
+            for q in questions_data[phase]:
+                scores = all_scores[phase][q['id']]
+                if scores:
+                    avg = sum(scores) / len(scores)
+                    benefit_stats['questions'][phase][q['id']] = {'avg': avg, 'count': len(scores), 'title': q['title']}
+                    phase_scores.append(avg)
+                    all_avgs.append(avg)
+                    
+                    item = {'phase': phase, 'question_id': q['id'], 'title': q['title'], 'score': avg}
+                    if avg >= 4:
+                        benefit_stats['high_maturity'].append(item)
+                    elif avg < 3:
+                        benefit_stats['low_maturity'].append(item)
+            
+            if phase_scores:
+                benefit_stats['phases'][phase] = {'avg': sum(phase_scores)/len(phase_scores), 'min': min(phase_scores), 'max': max(phase_scores)}
+        
+        if all_avgs:
+            benefit_stats['overall_avg'] = sum(all_avgs) / len(all_avgs)
+        
+        benefit_stats['high_maturity'].sort(key=lambda x: x['score'], reverse=True)
+        benefit_stats['low_maturity'].sort(key=lambda x: x['score'])
+        
+        return benefit_stats
     
-    html += f'<div class="footer">Generert {datetime.now().strftime("%d.%m.%Y %H:%M")} | Bane NOR</div></body></html>'
+    # Vis resultater per gevinst
+    if benefits and benefit_interviews:
+        for ben_id, ben in benefits.items():
+            if ben_id in benefit_interviews and benefit_interviews[ben_id]:
+                interviews_list = benefit_interviews[ben_id]
+                ben_stats = calculate_benefit_stats(interviews_list)
+                
+                if ben_stats and ben_stats['total_interviews'] > 0:
+                    html += f'''
+                    <div class="benefit-section">
+                        <div class="benefit-header">
+                            <h3 style="margin: 0; color: white;">Gevinst: {ben['name']}</h3>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <div class="metric-card">
+                                <div class="metric-value">{ben_stats['total_interviews']}</div>
+                                <div class="metric-label">Intervjuer</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">{ben_stats['overall_avg']:.2f}</div>
+                                <div class="metric-label">Gjennomsnitt</div>
+                            </div>
+                            <div class="metric-card" style="border-left-color: #35DE6D;">
+                                <div class="metric-value" style="color: #35DE6D;">{len(ben_stats['high_maturity'])}</div>
+                                <div class="metric-label">Styrker</div>
+                            </div>
+                            <div class="metric-card" style="border-left-color: #FF6B6B;">
+                                <div class="metric-value" style="color: #FF6B6B;">{len(ben_stats['low_maturity'])}</div>
+                                <div class="metric-label">Forbedring</div>
+                            </div>
+                        </div>
+                    '''
+                    
+                    # Diagrammer for denne gevinsten
+                    if ben_stats['phases'] and len(ben_stats['phases']) >= 3:
+                        html += '<div class="charts-row">'
+                        phase_cats = list(ben_stats['phases'].keys())
+                        phase_vals = [ben_stats['phases'][p]['avg'] for p in phase_cats]
+                        html += '<div class="chart-container">'
+                        html += create_svg_radar(phase_cats, phase_vals, '#0053A6', f'Faser - {ben["name"][:20]}')
+                        html += '</div>'
+                        html += '</div>'
+                    
+                    # Styrker og forbedringer for denne gevinsten
+                    if ben_stats['high_maturity']:
+                        html += "<h4>Styrkeomrader</h4>"
+                        for item in ben_stats['high_maturity'][:5]:
+                            html += f'<div class="item item-strength"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>'
+                    
+                    if ben_stats['low_maturity']:
+                        html += "<h4>Forbedringsomrader</h4>"
+                        for item in ben_stats['low_maturity'][:5]:
+                            html += f'<div class="item item-improvement"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>'
+                    
+                    # Kommentarer for denne gevinsten
+                    html += render_comments_section(interviews_list, "Kommentarer for denne gevinsten")
+                    
+                    html += "</div>"  # End benefit-section
+    
+    # Generelle intervjuer (uten spesifikk gevinst)
+    if general_interviews:
+        html += '''
+        <div class="benefit-section">
+            <div class="benefit-header">
+                <h3 style="margin: 0; color: white;">Generelt for initiativet</h3>
+            </div>
+        '''
+        
+        gen_stats = calculate_benefit_stats(general_interviews)
+        if gen_stats and gen_stats['total_interviews'] > 0:
+            html += f'''
+            <div class="metric-row">
+                <div class="metric-card">
+                    <div class="metric-value">{gen_stats['total_interviews']}</div>
+                    <div class="metric-label">Intervjuer</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">{gen_stats['overall_avg']:.2f}</div>
+                    <div class="metric-label">Gjennomsnitt</div>
+                </div>
+            </div>
+            '''
+        
+        # Kommentarer for generelle intervjuer
+        html += render_comments_section(general_interviews, "Kommentarer")
+        html += "</div>"
+    
+    # Hvis ingen gevinst-spesifikke intervjuer, vis alle kommentarer på overordnet nivå
+    if not benefit_interviews and not general_interviews:
+        all_interviews = [(idx, iid, interview) for idx, (iid, interview) in enumerate(initiative.get('interviews', {}).items())]
+        if all_interviews:
+            html += '''
+            <div class="benefit-section">
+                <div class="benefit-header">
+                    <h3 style="margin: 0; color: white;">Alle kommentarer</h3>
+                </div>
+            '''
+            html += render_comments_section(all_interviews, "Kommentarer fra alle intervjuer")
+            html += "</div>"
+    
+    html += f'<div class="footer">Generert {datetime.now().strftime("%d.%m.%Y %H:%M")} | Bane NOR - Modenhetsvurdering Gevinstrealisering</div></body></html>'
     return html
 
 # ============================================================================
