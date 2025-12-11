@@ -429,16 +429,20 @@ def persist_data():
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap');
-html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
-.main-header {{ font-size: 2rem; color: {COLORS['primary_dark']}; text-align: center; margin-bottom: 0.3rem; font-weight: 700; }}
-.sub-header {{ font-size: 0.95rem; color: {COLORS['primary']}; text-align: center; margin-bottom: 1.5rem; }}
-.metric-card {{ background: {COLORS['gray_light']}; padding: 1rem; border-radius: 8px; border-left: 4px solid {COLORS['primary']}; text-align: center; margin: 0.3rem 0; }}
-.metric-value {{ font-size: 1.6rem; font-weight: 700; color: {COLORS['primary_dark']}; }}
-.metric-label {{ font-size: 0.75rem; color: #666; text-transform: uppercase; }}
-.strength-card {{ background: linear-gradient(135deg, #DDFAE2 0%, {COLORS['gray_light']} 100%); padding: 0.8rem; border-radius: 8px; border-left: 4px solid {COLORS['success']}; margin: 0.4rem 0; }}
-.improvement-card {{ background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, {COLORS['gray_light']} 100%); padding: 0.8rem; border-radius: 8px; border-left: 4px solid {COLORS['danger']}; margin: 0.4rem 0; }}
-.stButton > button {{ background: linear-gradient(135deg, {COLORS['primary']} 0%, {COLORS['primary_dark']} 100%); color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; font-weight: 600; }}
+html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; font-size: 16px; }}
+.main-header {{ font-size: 2.2rem; color: {COLORS['primary_dark']}; text-align: center; margin-bottom: 0.3rem; font-weight: 700; }}
+.sub-header {{ font-size: 1.1rem; color: {COLORS['primary']}; text-align: center; margin-bottom: 1.5rem; }}
+.metric-card {{ background: {COLORS['gray_light']}; padding: 1.2rem; border-radius: 8px; border-left: 4px solid {COLORS['primary']}; text-align: center; margin: 0.3rem 0; }}
+.metric-value {{ font-size: 2.2rem; font-weight: 700; color: {COLORS['primary_dark']}; }}
+.metric-label {{ font-size: 0.95rem; color: #666; text-transform: uppercase; }}
+.strength-card {{ background: linear-gradient(135deg, #DDFAE2 0%, {COLORS['gray_light']} 100%); padding: 1rem; border-radius: 8px; border-left: 4px solid {COLORS['success']}; margin: 0.5rem 0; font-size: 1.05rem; }}
+.improvement-card {{ background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, {COLORS['gray_light']} 100%); padding: 1rem; border-radius: 8px; border-left: 4px solid {COLORS['danger']}; margin: 0.5rem 0; font-size: 1.05rem; }}
+.stButton > button {{ background: linear-gradient(135deg, {COLORS['primary']} 0%, {COLORS['primary_dark']} 100%); color: white; border: none; border-radius: 6px; padding: 0.6rem 1.2rem; font-weight: 600; font-size: 1rem; }}
 .stProgress > div > div > div > div {{ background: linear-gradient(90deg, {COLORS['primary_light']} 0%, {COLORS['success']} 100%); }}
+div[data-testid="stMetricValue"] {{ font-size: 2rem; }}
+div[data-testid="stMarkdownContainer"] p {{ font-size: 1.05rem; }}
+div[data-testid="stMarkdownContainer"] li {{ font-size: 1.05rem; }}
+.stSelectbox label, .stTextInput label, .stTextArea label {{ font-size: 1rem; }}
 #MainMenu {{visibility: hidden;}}
 footer {{visibility: hidden;}}
 </style>
@@ -555,13 +559,16 @@ def create_phase_radar(phase_data):
         return None
     categories = list(phase_data.keys())
     values = [phase_data[c]['avg'] for c in categories]
-    if len(categories) < 3:
-        fig = go.Figure(data=[go.Bar(x=categories, y=values, marker_color=COLORS['primary'])])
-        fig.update_layout(yaxis=dict(range=[0, 5], title="Score"), height=350, margin=dict(l=40, r=40, t=40, b=40))
-        return fig
+    # Dupliser hvis færre enn 3 punkter
+    if len(categories) == 1:
+        categories = categories * 3
+        values = values * 3
+    elif len(categories) == 2:
+        categories = categories + [categories[0]]
+        values = values + [values[0]]
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(r=values + [values[0]], theta=categories + [categories[0]], fill='toself', fillcolor='rgba(0, 83, 166, 0.3)', line=dict(color=COLORS['primary'], width=3)))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5])), showlegend=False, height=350, margin=dict(l=80, r=80, t=40, b=40))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5], tickfont=dict(size=14)), angularaxis=dict(tickfont=dict(size=14))), showlegend=False, height=350, margin=dict(l=80, r=80, t=40, b=40), font=dict(size=14))
     return fig
 
 def create_parameter_radar(param_data):
@@ -569,35 +576,52 @@ def create_parameter_radar(param_data):
         return None
     categories = list(param_data.keys())
     values = [param_data[c]['avg'] for c in categories]
-    if len(categories) < 3:
-        fig = go.Figure(data=[go.Bar(x=categories, y=values, marker_color=COLORS['primary_light'])])
-        fig.update_layout(yaxis=dict(range=[0, 5], title="Score"), height=350, margin=dict(l=40, r=40, t=40, b=40))
-        return fig
+    # Dupliser hvis færre enn 3 punkter
+    if len(categories) == 1:
+        categories = categories * 3
+        values = values * 3
+    elif len(categories) == 2:
+        categories = categories + [categories[0]]
+        values = values + [values[0]]
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(r=values + [values[0]], theta=categories + [categories[0]], fill='toself', fillcolor='rgba(100, 200, 250, 0.3)', line=dict(color=COLORS['primary_light'], width=3)))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=False, height=400, margin=dict(l=100, r=100, t=40, b=40))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickfont=dict(size=14)), angularaxis=dict(tickfont=dict(size=13))), showlegend=False, height=400, margin=dict(l=100, r=100, t=40, b=40), font=dict(size=14))
     return fig
 
 def create_strength_radar(items, max_items=8):
-    if not items or len(items) < 3:
+    if not items:
         return None
     items = items[:max_items]
     categories = [f"{item['title'][:20]}..." if len(item['title']) > 20 else item['title'] for item in items]
     values = [item['score'] for item in items]
+    # Radar krever minst 3 punkter - dupliser hvis færre
+    if len(categories) == 1:
+        categories = categories * 3
+        values = values * 3
+    elif len(categories) == 2:
+        categories = categories + [categories[0]]
+        values = values + [values[0]]
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(r=values + [values[0]], theta=categories + [categories[0]], fill='toself', fillcolor='rgba(53, 222, 109, 0.3)', line=dict(color=COLORS['success'], width=3), name='Styrker'))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5])), showlegend=False, height=400, margin=dict(l=80, r=80, t=40, b=40))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5], tickfont=dict(size=14)), angularaxis=dict(tickfont=dict(size=13))), showlegend=False, height=400, margin=dict(l=80, r=80, t=40, b=40), font=dict(size=14))
     return fig
 
 def create_improvement_radar(items, max_items=8):
-    if not items or len(items) < 3:
+    if not items:
         return None
     items = items[:max_items]
     categories = [f"{item['title'][:20]}..." if len(item['title']) > 20 else item['title'] for item in items]
     values = [item['score'] for item in items]
+    # Radar krever minst 3 punkter - dupliser hvis færre
+    if len(categories) == 1:
+        categories = categories * 3
+        values = values * 3
+    elif len(categories) == 2:
+        categories = categories + [categories[0]]
+        values = values + [values[0]]
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(r=values + [values[0]], theta=categories + [categories[0]], fill='toself', fillcolor='rgba(255, 107, 107, 0.3)', line=dict(color=COLORS['danger'], width=3), name='Forbedring'))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5])), showlegend=False, height=400, margin=dict(l=80, r=80, t=40, b=40))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5], tickvals=[1,2,3,4,5], tickfont=dict(size=14))), showlegend=False, height=400, margin=dict(l=80, r=80, t=40, b=40), font=dict(size=14))
     return fig
 
 def create_strength_bar_chart(items, max_items=8):
@@ -606,8 +630,8 @@ def create_strength_bar_chart(items, max_items=8):
     items = items[:max_items]
     labels = [f"{item['phase'][:4]}: {item['title'][:25]}..." if len(item['title']) > 25 else f"{item['phase'][:4]}: {item['title']}" for item in items]
     scores = [item['score'] for item in items]
-    fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=COLORS['success'], text=[f"{s:.1f}" for s in scores], textposition='outside')])
-    fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score"), yaxis=dict(autorange="reversed"), height=max(250, len(items) * 35), margin=dict(l=200, r=50, t=20, b=40))
+    fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=COLORS['success'], text=[f"{s:.1f}" for s in scores], textposition='outside', textfont=dict(size=16))])
+    fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score", tickfont=dict(size=14)), yaxis=dict(autorange="reversed", tickfont=dict(size=13)), height=max(300, len(items) * 45), margin=dict(l=220, r=60, t=20, b=40), font=dict(size=14))
     return fig
 
 def create_improvement_bar_chart(items, max_items=8):
@@ -616,8 +640,8 @@ def create_improvement_bar_chart(items, max_items=8):
     items = items[:max_items]
     labels = [f"{item['phase'][:4]}: {item['title'][:25]}..." if len(item['title']) > 25 else f"{item['phase'][:4]}: {item['title']}" for item in items]
     scores = [item['score'] for item in items]
-    fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=COLORS['danger'], text=[f"{s:.1f}" for s in scores], textposition='outside')])
-    fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score"), yaxis=dict(autorange="reversed"), height=max(250, len(items) * 35), margin=dict(l=200, r=50, t=20, b=40))
+    fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=COLORS['danger'], text=[f"{s:.1f}" for s in scores], textposition='outside', textfont=dict(size=16))])
+    fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score", tickfont=dict(size=14)), yaxis=dict(autorange="reversed", tickfont=dict(size=13)), height=max(300, len(items) * 45), margin=dict(l=220, r=60, t=20, b=40), font=dict(size=14))
     return fig
 
 # ============================================================================
@@ -636,12 +660,19 @@ def get_anonymous_name(index):
 
 def generate_html_report(initiative, stats):
     # Generer HTML-rapport
-    def create_svg_radar(categories, values, color, title="", width=400, height=350):
-        if len(categories) < 3:
+    def create_svg_radar(categories, values, color, title="", width=450, height=400):
+        if not categories or not values:
             return ""
+        # Dupliser hvis færre enn 3 punkter
+        if len(categories) == 1:
+            categories = categories * 3
+            values = values * 3
+        elif len(categories) == 2:
+            categories = categories + [categories[0]]
+            values = values + [values[0]]
         import math
         cx, cy = width // 2, height // 2
-        radius = min(width, height) // 2 - 60
+        radius = min(width, height) // 2 - 70
         n = len(categories)
         svg = f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">'
         for r in [0.2, 0.4, 0.6, 0.8, 1.0]:
@@ -661,12 +692,12 @@ def generate_html_report(initiative, stats):
         svg += f'<polygon points="{" ".join(points)}" fill="{color}" fill-opacity="0.3" stroke="{color}" stroke-width="2"/>'
         for i, cat in enumerate(categories):
             angle = (2 * math.pi * i / n) - math.pi / 2
-            x = cx + (radius + 35) * math.cos(angle)
-            y = cy + (radius + 35) * math.sin(angle)
+            x = cx + (radius + 45) * math.cos(angle)
+            y = cy + (radius + 45) * math.sin(angle)
             label = cat[:18] + "..." if len(cat) > 18 else cat
-            svg += f'<text x="{x}" y="{y}" text-anchor="middle" font-size="10" fill="#172141">{label}</text>'
+            svg += f'<text x="{x}" y="{y}" text-anchor="middle" font-size="13" fill="#172141">{label}</text>'
         if title:
-            svg += f'<text x="{cx}" y="20" text-anchor="middle" font-size="14" font-weight="bold" fill="#172141">{title}</text>'
+            svg += f'<text x="{cx}" y="22" text-anchor="middle" font-size="16" font-weight="bold" fill="#172141">{title}</text>'
         svg += '</svg>'
         return svg
 
@@ -676,35 +707,35 @@ def generate_html_report(initiative, stats):
     <meta charset="UTF-8">
     <title>Modenhetsvurdering - {initiative['name']}</title>
     <style>
-        body {{ font-family: 'Source Sans Pro', Arial, sans-serif; padding: 40px; max-width: 1200px; margin: 0 auto; color: #172141; line-height: 1.6; }}
-        h1 {{ color: #172141; text-align: center; margin-bottom: 5px; }}
-        h2 {{ color: #0053A6; border-bottom: 2px solid #64C8FA; padding-bottom: 8px; margin-top: 40px; }}
-        h3 {{ color: #0053A6; margin-top: 25px; }}
-        h4 {{ color: #172141; margin-top: 20px; }}
-        .subtitle {{ text-align: center; color: #0053A6; margin-bottom: 30px; }}
-        table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-        th {{ background: #0053A6; color: white; padding: 10px; text-align: left; }}
-        td {{ padding: 8px 10px; border-bottom: 1px solid #E8E8E8; }}
+        body {{ font-family: 'Source Sans Pro', Arial, sans-serif; padding: 40px; max-width: 1200px; margin: 0 auto; color: #172141; line-height: 1.7; font-size: 16px; }}
+        h1 {{ color: #172141; text-align: center; margin-bottom: 5px; font-size: 2rem; }}
+        h2 {{ color: #0053A6; border-bottom: 2px solid #64C8FA; padding-bottom: 8px; margin-top: 40px; font-size: 1.6rem; }}
+        h3 {{ color: #0053A6; margin-top: 25px; font-size: 1.3rem; }}
+        h4 {{ color: #172141; margin-top: 20px; font-size: 1.15rem; }}
+        .subtitle {{ text-align: center; color: #0053A6; margin-bottom: 30px; font-size: 1.1rem; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 1rem; }}
+        th {{ background: #0053A6; color: white; padding: 12px; text-align: left; font-size: 1rem; }}
+        td {{ padding: 10px 12px; border-bottom: 1px solid #E8E8E8; font-size: 1rem; }}
         tr:nth-child(even) {{ background: #F2FAFD; }}
         .metric-row {{ display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }}
-        .metric-card {{ flex: 1; min-width: 150px; background: #F2FAFD; padding: 15px; border-radius: 8px; border-left: 4px solid #0053A6; text-align: center; }}
-        .metric-value {{ font-size: 2rem; font-weight: 700; color: #0053A6; }}
-        .metric-label {{ font-size: 0.85rem; color: #666; text-transform: uppercase; }}
+        .metric-card {{ flex: 1; min-width: 150px; background: #F2FAFD; padding: 18px; border-radius: 8px; border-left: 4px solid #0053A6; text-align: center; }}
+        .metric-value {{ font-size: 2.4rem; font-weight: 700; color: #0053A6; }}
+        .metric-label {{ font-size: 1rem; color: #666; text-transform: uppercase; }}
         .charts-row {{ display: flex; gap: 30px; margin: 20px 0; flex-wrap: wrap; justify-content: center; }}
         .chart-container {{ flex: 1; min-width: 350px; max-width: 500px; text-align: center; }}
-        .item {{ padding: 8px 12px; margin: 5px 0; border-radius: 6px; }}
+        .item {{ padding: 12px 16px; margin: 8px 0; border-radius: 6px; font-size: 1.05rem; }}
         .item-strength {{ background: #DDFAE2; border-left: 4px solid #35DE6D; }}
         .item-improvement {{ background: rgba(255, 107, 107, 0.15); border-left: 4px solid #FF6B6B; }}
         .benefit-section {{ background: #F8F9FA; padding: 25px; margin: 30px 0; border-radius: 10px; border: 1px solid #E8E8E8; }}
         .benefit-header {{ background: #0053A6; color: white; padding: 15px 20px; margin: -25px -25px 20px -25px; border-radius: 10px 10px 0 0; }}
-        .comment-phase {{ background: #64C8FA; color: white; padding: 10px 15px; margin-top: 20px; border-radius: 6px 6px 0 0; }}
-        .comment-question {{ background: #F2FAFD; padding: 10px 15px; border-left: 3px solid #0053A6; margin: 10px 0; }}
-        .comment-question h4 {{ margin: 0 0 10px 0; color: #172141; font-size: 0.95rem; }}
-        .comment-item {{ background: white; padding: 10px 15px; margin: 8px 0; border-radius: 4px; border: 1px solid #E8E8E8; }}
-        .comment-meta {{ font-size: 0.85em; color: #666; margin-bottom: 5px; }}
-        .comment-text {{ color: #172141; font-size: 0.95rem; }}
-        .score-badge {{ display: inline-block; background: #64C8FA; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px; }}
-        .footer {{ text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E8E8E8; color: #666; }}
+        .comment-phase {{ background: #64C8FA; color: white; padding: 12px 18px; margin-top: 20px; border-radius: 6px 6px 0 0; font-size: 1.1rem; font-weight: 600; }}
+        .comment-question {{ background: #F2FAFD; padding: 12px 18px; border-left: 3px solid #0053A6; margin: 10px 0; }}
+        .comment-question h4 {{ margin: 0 0 10px 0; color: #172141; font-size: 1.05rem; }}
+        .comment-item {{ background: white; padding: 12px 18px; margin: 10px 0; border-radius: 4px; border: 1px solid #E8E8E8; }}
+        .comment-meta {{ font-size: 0.95rem; color: #666; margin-bottom: 6px; }}
+        .comment-text {{ color: #172141; font-size: 1.05rem; }}
+        .score-badge {{ display: inline-block; background: #64C8FA; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.9rem; margin-left: 8px; }}
+        .footer {{ text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E8E8E8; color: #666; font-size: 0.95rem; }}
         .page-break {{ page-break-before: always; }}
     </style>
 </head>
@@ -767,13 +798,13 @@ def generate_html_report(initiative, stats):
 
     html += "<h3>1.3 Styrkeomrader og forbedringsomrader</h3>"
     html += '<div class="charts-row">'
-    if stats['high_maturity'] and len(stats['high_maturity']) >= 3:
+    if stats['high_maturity']:
         html += '<div class="chart-container">'
         strength_cats = [item['title'][:20] for item in stats['high_maturity'][:8]]
         strength_vals = [item['score'] for item in stats['high_maturity'][:8]]
         html += create_svg_radar(strength_cats, strength_vals, '#35DE6D', 'Styrkeomrader')
         html += '</div>'
-    if stats['low_maturity'] and len(stats['low_maturity']) >= 3:
+    if stats['low_maturity']:
         html += '<div class="chart-container">'
         improve_cats = [item['title'][:20] for item in stats['low_maturity'][:8]]
         improve_vals = [item['score'] for item in stats['low_maturity'][:8]]
@@ -1313,10 +1344,6 @@ def show_main_app(data, current_project_id):
                     fig = create_strength_radar(stats['high_maturity'])
                     if fig:
                         st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        fig = create_strength_bar_chart(stats['high_maturity'])
-                        if fig:
-                            st.plotly_chart(fig, use_container_width=True)
                     st.markdown("#### Detaljer")
                     for item in stats['high_maturity'][:5]:
                         st.markdown(f'<div class="strength-card"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>', unsafe_allow_html=True)
@@ -1328,10 +1355,6 @@ def show_main_app(data, current_project_id):
                     fig = create_improvement_radar(stats['low_maturity'])
                     if fig:
                         st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        fig = create_improvement_bar_chart(stats['low_maturity'])
-                        if fig:
-                            st.plotly_chart(fig, use_container_width=True)
                     st.markdown("#### Detaljer")
                     for item in stats['low_maturity'][:5]:
                         st.markdown(f'<div class="improvement-card"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>', unsafe_allow_html=True)
