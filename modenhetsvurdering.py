@@ -24,7 +24,14 @@ import os
 from io import BytesIO
 import uuid
 import shutil
-from filelock import FileLock
+
+# Filelock er valgfri
+FILELOCK_AVAILABLE = False
+try:
+    from filelock import FileLock
+    FILELOCK_AVAILABLE = True
+except ImportError:
+    pass
 
 st.set_page_config(
     page_title="Modenhetsvurdering - Bane NOR",
@@ -322,14 +329,22 @@ def load_data():
 def save_data(data):
     # Lagre data til fil med las
     data_file = get_data_file()
-    lock = FileLock(LOCK_FILE, timeout=10)
-    try:
-        with lock:
+    if FILELOCK_AVAILABLE:
+        lock = FileLock(LOCK_FILE, timeout=10)
+        try:
+            with lock:
+                create_backup()
+                with open(data_file, 'wb') as f:
+                    pickle.dump(data, f)
+        except Exception as e:
+            st.error(f"Feil ved lagring: {e}")
+    else:
+        try:
             create_backup()
             with open(data_file, 'wb') as f:
                 pickle.dump(data, f)
-    except Exception as e:
-        st.error(f"Feil ved lagring: {e}")
+        except Exception as e:
+            st.error(f"Feil ved lagring: {e}")
 
 def get_data():
     # Hent data
@@ -383,10 +398,20 @@ def merge_data(file_data, session_data):
 def persist_data():
     # Lagre med merge for a unnga a overskrive andres data
     data_file = get_data_file()
-    lock = FileLock(LOCK_FILE, timeout=10)
     
     try:
-        with lock:
+        if FILELOCK_AVAILABLE:
+            lock = FileLock(LOCK_FILE, timeout=10)
+            with lock:
+                current_file_data = load_data()
+                session_data = st.session_state.app_data
+                merged_data = merge_data(current_file_data, session_data)
+                create_backup()
+                with open(data_file, 'wb') as f:
+                    pickle.dump(merged_data, f)
+                st.session_state.app_data = merged_data
+                st.session_state.data_loaded_at = datetime.now()
+        else:
             current_file_data = load_data()
             session_data = st.session_state.app_data
             merged_data = merge_data(current_file_data, session_data)
