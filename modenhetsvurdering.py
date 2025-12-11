@@ -644,6 +644,26 @@ def create_improvement_bar_chart(items, max_items=8):
     fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score", tickfont=dict(size=14)), yaxis=dict(autorange="reversed", tickfont=dict(size=13)), height=max(300, len(items) * 45), margin=dict(l=220, r=60, t=20, b=40), font=dict(size=14))
     return fig
 
+def create_parameter_bar_chart(param_data):
+    if not param_data:
+        return None
+    labels = list(param_data.keys())
+    scores = [param_data[p]['avg'] for p in labels]
+    colors = [COLORS['success'] if s >= 4 else COLORS['primary_light'] if s >= 3 else COLORS['warning'] if s >= 2 else COLORS['danger'] for s in scores]
+    fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=colors, text=[f"{s:.2f}" for s in scores], textposition='outside', textfont=dict(size=15))])
+    fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score", tickfont=dict(size=14)), yaxis=dict(autorange="reversed", tickfont=dict(size=12)), height=max(350, len(labels) * 40), margin=dict(l=200, r=60, t=20, b=40), font=dict(size=14))
+    return fig
+
+def create_phase_bar_chart(phase_data):
+    if not phase_data:
+        return None
+    labels = list(phase_data.keys())
+    scores = [phase_data[p]['avg'] for p in labels]
+    colors = [COLORS['success'] if s >= 4 else COLORS['primary_light'] if s >= 3 else COLORS['warning'] if s >= 2 else COLORS['danger'] for s in scores]
+    fig = go.Figure(data=[go.Bar(x=scores, y=labels, orientation='h', marker_color=colors, text=[f"{s:.2f}" for s in scores], textposition='outside', textfont=dict(size=16))])
+    fig.update_layout(xaxis=dict(range=[0, 5.5], title="Score", tickfont=dict(size=14)), yaxis=dict(autorange="reversed", tickfont=dict(size=14)), height=max(250, len(labels) * 50), margin=dict(l=150, r=60, t=20, b=40), font=dict(size=14))
+    return fig
+
 # ============================================================================
 # RAPPORT-GENERERING
 # ============================================================================
@@ -698,6 +718,36 @@ def generate_html_report(initiative, stats):
             svg += f'<text x="{x}" y="{y}" text-anchor="middle" font-size="13" fill="#172141">{label}</text>'
         if title:
             svg += f'<text x="{cx}" y="22" text-anchor="middle" font-size="16" font-weight="bold" fill="#172141">{title}</text>'
+        svg += '</svg>'
+        return svg
+
+    def create_svg_bar_chart(labels, values, colors, title="", width=500, height=None):
+        if not labels or not values:
+            return ""
+        bar_height = 35
+        if height is None:
+            height = len(labels) * (bar_height + 10) + 60
+        max_val = 5
+        bar_area_width = width - 220
+        
+        svg = f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">'
+        if title:
+            svg += f'<text x="{width//2}" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#172141">{title}</text>'
+        
+        y_offset = 50
+        for i, (label, val) in enumerate(zip(labels, values)):
+            y = y_offset + i * (bar_height + 10)
+            bar_width = (val / max_val) * bar_area_width
+            color = colors[i] if isinstance(colors, list) else colors
+            
+            # Label
+            display_label = label[:22] + "..." if len(label) > 22 else label
+            svg += f'<text x="5" y="{y + bar_height//2 + 5}" font-size="12" fill="#172141">{display_label}</text>'
+            # Bar
+            svg += f'<rect x="180" y="{y}" width="{bar_width}" height="{bar_height}" fill="{color}" rx="4"/>'
+            # Value
+            svg += f'<text x="{185 + bar_width}" y="{y + bar_height//2 + 5}" font-size="14" font-weight="bold" fill="#172141">{val:.2f}</text>'
+        
         svg += '</svg>'
         return svg
 
@@ -781,19 +831,31 @@ def generate_html_report(initiative, stats):
             html += f"<tr><td>{phase}</td><td><strong>{data['avg']:.2f}</strong></td><td>{data['min']:.2f}</td><td>{data['max']:.2f}</td></tr>"
         html += "</table>"
         
-        if len(stats['phases']) >= 3:
-            phase_cats = list(stats['phases'].keys())
-            phase_vals = [stats['phases'][p]['avg'] for p in phase_cats]
+        phase_cats = list(stats['phases'].keys())
+        phase_vals = [stats['phases'][p]['avg'] for p in phase_cats]
+        phase_colors = ['#35DE6D' if v >= 4 else '#64C8FA' if v >= 3 else '#FFA040' if v >= 2 else '#FF6B6B' for v in phase_vals]
+        
+        html += '<div class="charts-row">'
+        html += '<div class="chart-container">'
+        html += create_svg_radar(phase_cats, phase_vals, '#0053A6', 'Modenhet per fase')
+        html += '</div>'
+        html += '<div class="chart-container">'
+        html += create_svg_bar_chart(phase_cats, phase_vals, phase_colors, 'Faser - stolpediagram')
+        html += '</div>'
+        html += '</div>'
+        
+        if stats['parameters']:
+            param_cats = list(stats['parameters'].keys())
+            param_vals = [stats['parameters'][p]['avg'] for p in param_cats]
+            param_colors = ['#35DE6D' if v >= 4 else '#64C8FA' if v >= 3 else '#FFA040' if v >= 2 else '#FF6B6B' for v in param_vals]
+            
             html += '<div class="charts-row">'
             html += '<div class="chart-container">'
-            html += create_svg_radar(phase_cats, phase_vals, '#0053A6', 'Modenhet per fase')
+            html += create_svg_radar(param_cats, param_vals, '#64C8FA', 'Modenhet per parameter')
             html += '</div>'
-            if stats['parameters'] and len(stats['parameters']) >= 3:
-                param_cats = list(stats['parameters'].keys())
-                param_vals = [stats['parameters'][p]['avg'] for p in param_cats]
-                html += '<div class="chart-container">'
-                html += create_svg_radar(param_cats, param_vals, '#64C8FA', 'Modenhet per parameter')
-                html += '</div>'
+            html += '<div class="chart-container">'
+            html += create_svg_bar_chart(param_cats, param_vals, param_colors, 'Parametere - stolpediagram')
+            html += '</div>'
             html += '</div>'
 
     html += "<h3>1.3 Styrkeomrader og forbedringsomrader</h3>"
@@ -809,6 +871,22 @@ def generate_html_report(initiative, stats):
         improve_cats = [item['title'][:20] for item in stats['low_maturity'][:8]]
         improve_vals = [item['score'] for item in stats['low_maturity'][:8]]
         html += create_svg_radar(improve_cats, improve_vals, '#FF6B6B', 'Forbedringsomrader')
+        html += '</div>'
+    html += '</div>'
+    
+    # Bar charts for styrker og forbedringer
+    html += '<div class="charts-row">'
+    if stats['high_maturity']:
+        html += '<div class="chart-container">'
+        strength_labels = [f"[{item['phase'][:4]}] {item['title'][:18]}" for item in stats['high_maturity'][:8]]
+        strength_vals = [item['score'] for item in stats['high_maturity'][:8]]
+        html += create_svg_bar_chart(strength_labels, strength_vals, '#35DE6D', 'Styrker - stolpediagram')
+        html += '</div>'
+    if stats['low_maturity']:
+        html += '<div class="chart-container">'
+        improve_labels = [f"[{item['phase'][:4]}] {item['title'][:18]}" for item in stats['low_maturity'][:8]]
+        improve_vals = [item['score'] for item in stats['low_maturity'][:8]]
+        html += create_svg_bar_chart(improve_labels, improve_vals, '#FF6B6B', 'Forbedring - stolpediagram')
         html += '</div>'
     html += '</div>'
 
@@ -1323,19 +1401,25 @@ def show_main_app(data, current_project_id):
                 st.markdown("### Modenhet per fase")
                 if stats['phases']:
                     for phase_name, phase_data in stats['phases'].items():
-                        st.markdown(f'''<div style="display:flex;align-items:center;gap:10px;padding:8px;background:{COLORS['gray_light']};border-radius:6px;margin:4px 0;">
+                        st.markdown(f'''<div style="display:flex;align-items:center;gap:10px;padding:10px;background:{COLORS['gray_light']};border-radius:6px;margin:5px 0;font-size:1.1rem;">
                             <span style="flex:1;font-weight:600;">{phase_name}</span>
-                            <span style="color:{get_score_color(phase_data['avg'])};font-weight:700;">{phase_data['avg']:.2f}</span>
+                            <span style="color:{get_score_color(phase_data['avg'])};font-weight:700;font-size:1.2rem;">{phase_data['avg']:.2f}</span>
                         </div>''', unsafe_allow_html=True)
                     fig = create_phase_radar(stats['phases'])
                     if fig:
                         st.plotly_chart(fig, use_container_width=True)
+                    fig_bar = create_phase_bar_chart(stats['phases'])
+                    if fig_bar:
+                        st.plotly_chart(fig_bar, use_container_width=True)
             with col2:
                 st.markdown("### Modenhet per parameter")
                 if stats['parameters']:
                     fig = create_parameter_radar(stats['parameters'])
                     if fig:
                         st.plotly_chart(fig, use_container_width=True)
+                    fig_bar = create_parameter_bar_chart(stats['parameters'])
+                    if fig_bar:
+                        st.plotly_chart(fig_bar, use_container_width=True)
             st.markdown("---")
             col1, col2 = st.columns(2)
             with col1:
@@ -1344,6 +1428,9 @@ def show_main_app(data, current_project_id):
                     fig = create_strength_radar(stats['high_maturity'])
                     if fig:
                         st.plotly_chart(fig, use_container_width=True)
+                    fig_bar = create_strength_bar_chart(stats['high_maturity'])
+                    if fig_bar:
+                        st.plotly_chart(fig_bar, use_container_width=True)
                     st.markdown("#### Detaljer")
                     for item in stats['high_maturity'][:5]:
                         st.markdown(f'<div class="strength-card"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>', unsafe_allow_html=True)
@@ -1355,6 +1442,9 @@ def show_main_app(data, current_project_id):
                     fig = create_improvement_radar(stats['low_maturity'])
                     if fig:
                         st.plotly_chart(fig, use_container_width=True)
+                    fig_bar = create_improvement_bar_chart(stats['low_maturity'])
+                    if fig_bar:
+                        st.plotly_chart(fig_bar, use_container_width=True)
                     st.markdown("#### Detaljer")
                     for item in stats['low_maturity'][:5]:
                         st.markdown(f'<div class="improvement-card"><strong>[{item["phase"]}]</strong> {item["title"]}: <strong>{item["score"]:.2f}</strong></div>', unsafe_allow_html=True)
