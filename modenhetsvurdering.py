@@ -197,7 +197,7 @@ questions_data = {
         {"id": 10, "title": "Prinsipielle og vilkarsmessige kriterier", "question": "Er forutsetninger og kriterier som påvirker gevinstene tydelig definert og dokumentert?", "scale": ["Niva 1: Ingen kriterier dokumentert.", "Niva 2: Kriterier er beskrevet uformelt.", "Niva 3: Kriterier dokumentert i deler av planverket.", "Niva 4: Vesentlige kriterier er analysert og håndtert i gevinstrealiseringsplanen.", "Niva 5: Kriterier overvakes, følges opp og inngår i risikostyringen."]},
         {"id": 11, "title": "Enighet om nullpunkter/estimater", "question": "Er det oppnadd enighet blant nøkkelinteressenter om nullpunkter og estimater?", "scale": ["Niva 1: Ingen enighet eller dokumentert praksis.", "Niva 2: Delvis enighet, men ikke formalisert.", "Niva 3: Enighet for hovedestimater, men med reservasjoner.", "Niva 4: Full enighet dokumentert og forankret.", "Niva 5: Kontinuerlig dialog og justering av estimater med interessentene."]},
         {"id": 12, "title": "Disponering av kostnads- og tidsbesparelser", "question": "Hvordan er kostnads- og tidsbesparelser planlagt disponert mellom prissatte og ikke-prissatte gevinster?", "scale": ["Niva 1: Ingen plan for disponering eller måling av besparelser.", "Niva 2: Delvis oversikt, men ikke dokumentert eller fulgt opp.", "Niva 3: Plan finnes for enkelte områder, men uten systematikk.", "Niva 4: Disponering og effekter dokumentert og målt.", "Niva 5: Frigjorte ressurser disponeres strategisk og måles som del av gevinstrealiseringen."]},
-        {"id": 13, "title": "måling av effektivitet og produktivitet", "question": "Hvordan måles okt effektivitet og produktivitet som følge av besparelser?", "scale": ["Niva 1: Ingen måling av effektivitet eller produktivitet.", "Niva 2: Enkelte målinger, men ikke systematisk.", "Niva 3: måling for enkelte gevinster, men begrenset fokus pa bærekraft.", "Niva 4: Systematisk måling og vurdering av om gevinster opprettholdes over tid.", "Niva 5: måling integrert i gevinstoppfølgingen, bærekraftige gevinster sikres."]},
+        {"id": 13, "title": "Måling av effektivitet og produktivitet", "question": "Hvordan måles okt effektivitet og produktivitet som følge av besparelser?", "scale": ["Niva 1: Ingen måling av effektivitet eller produktivitet.", "Niva 2: Enkelte målinger, men ikke systematisk.", "Niva 3: Måling for enkelte gevinster, men begrenset fokus pa bærekraft.", "Niva 4: Systematisk måling og vurdering av om gevinster opprettholdes over tid.", "Niva 5: Måling integrert i gevinstoppfølgingen, bærekraftige gevinster sikres."]},
         {"id": 14, "title": "Operasjonell risiko og ulemper", "question": "Er mulige negative konsekvenser eller ulemper knyttet til operasjonelle forhold identifisert, vurdert og håndtert i planen?", "scale": ["Niva 1: Negative effekter ikke vurdert.", "Niva 2: Kjent, men ikke håndtert.", "Niva 3: Beskrevet, men ikke fulgt opp systematisk.", "Niva 4: håndtert og overvaket med tilpasning til ulike operasjonelle scenarier.", "Niva 5: Systematisk vurdert og del av gevinstdialogen med kontinuerlig justering."]},
         {"id": 15, "title": "Balanse mellom gevinster og ulemper", "question": "Hvordan sikres det at balansen mellom gevinster og ulemper vurderes i styringsdialoger?", "scale": ["Niva 1: Ingen vurdering av balanse.", "Niva 2: Diskuteres uformelt.", "Niva 3: Del av enkelte oppfølgingsmøter.", "Niva 4: Systematisk vurdert i gevinststyring.", "Niva 5: inngår som fast punkt i styrings- og gevinstdialoger."]},
         {"id": 16, "title": "Dokumentasjon og gevinstrealiseringsplan", "question": "Er det utarbeidet en forankret gevinstrealiseringsplan som beskriver hvordan gevinstene skal hentes ut og måles?", "scale": ["Niva 1: Ingen formell gevinstrealiseringsplan.", "Niva 2: Utkast til plan finnes, men er ufullstendig.", "Niva 3: Plan er etablert, men ikke validert eller periodisert.", "Niva 4: Planen er forankret, oppdatert og koblet til gevinstkartet.", "Niva 5: Planen brukes aktivt som styringsdokument med revisjon."]},
@@ -314,18 +314,25 @@ def create_backup():
             print(f"Backup feilet: {e}")
 
 def load_data():
-    # Last data fra fil
+    """Last data fra fil med filelock for sikker lesing"""
     data_file = get_data_file()
     if os.path.exists(data_file):
         try:
-            with open(data_file, 'rb') as f:
-                data = pickle.load(f)
-                if 'projects' in data and 'initiatives' not in data:
-                    data['initiatives'] = data['projects']
-                    del data['projects']
-                if 'initiatives' not in data:
-                    data['initiatives'] = {}
-                return data
+            if FILELOCK_AVAILABLE:
+                lock = FileLock(LOCK_FILE, timeout=5)
+                with lock:
+                    with open(data_file, 'rb') as f:
+                        data = pickle.load(f)
+            else:
+                with open(data_file, 'rb') as f:
+                    data = pickle.load(f)
+            
+            if 'projects' in data and 'initiatives' not in data:
+                data['initiatives'] = data['projects']
+                del data['projects']
+            if 'initiatives' not in data:
+                data['initiatives'] = {}
+            return data
         except:
             pass
     return {'initiatives': {}}
@@ -351,10 +358,16 @@ def save_data(data):
             st.error(f"Feil ved lagring: {e}")
 
 def get_data():
-    # Hent data
+    """ALWAYS read from file first to ensure fresh data - prevents data loss on rerun"""
+    file_data = load_data()  # Always read file
+    
     if 'app_data' not in st.session_state:
-        st.session_state.app_data = load_data()
+        st.session_state.app_data = file_data
         st.session_state.data_loaded_at = datetime.now()
+    else:
+        # Merge file data with session - file has priority for other users' data
+        st.session_state.app_data = merge_data(file_data, st.session_state.app_data)
+    
     if 'initiatives' not in st.session_state.app_data:
         st.session_state.app_data['initiatives'] = {}
     return st.session_state.app_data
@@ -400,7 +413,7 @@ def merge_data(file_data, session_data):
     return merged
 
 def persist_data():
-    # Lagre med merge for a unnga a overskrive andres data
+    # Lagre med merge for å unnga å overskrive andres data
     data_file = get_data_file()
     
     try:
@@ -462,7 +475,7 @@ def get_score_color(score):
     else: return COLORS['danger']
 
 def get_score_text(score):
-    if score >= 4.5: return "høy modenhet"
+    if score >= 4.5: return "Høy modenhet"
     elif score >= 3.5: return "God modenhet"
     elif score >= 2.5: return "Moderat modenhet"
     elif score >= 1.5: return "Begrenset modenhet"
@@ -480,6 +493,93 @@ def get_recommended_questions(mode, selection, phase):
     return []
 
 def calculate_stats(initiative, benefit_filter=None):
+    if not initiative.get('interviews'):
+        return None
+    
+    all_scores = {}
+    for phase in PHASES:
+        all_scores[phase] = {}
+        for q in questions_data[phase]:
+            all_scores[phase][q['id']] = []
+    
+    interview_count = 0
+    for interview in initiative['interviews'].values():
+        if benefit_filter and benefit_filter != "all":
+            if interview.get('info', {}).get('benefit_id') != benefit_filter:
+                continue
+        interview_count += 1
+        
+        for phase, questions in interview.get('responses', {}).items():
+            for q_id, resp in questions.items():
+                if resp.get('score', 0) > 0:
+                    all_scores[phase][int(q_id)].append(resp['score'])
+    
+    stats = {
+        'phases': {},
+        'questions': {},
+        'parameters': {},
+        'total_interviews': interview_count,
+        'overall_avg': 0,
+        'high_maturity': [],
+        'low_maturity': []
+    }
+    
+    all_avgs = []
+    
+    for phase in PHASES:
+        phase_scores = []
+        stats['questions'][phase] = {}
+        
+        for q in questions_data[phase]:
+            scores = all_scores[phase][q['id']]
+            if scores:
+                avg = np.mean(scores)
+                stats['questions'][phase][q['id']] = {
+                    'avg': avg, 'min': min(scores), 'max': max(scores),
+                    'count': len(scores), 'title': q['title'], 'question': q['question']
+                }
+                phase_scores.append(avg)
+                all_avgs.append(avg)
+                
+                item = {'phase': phase, 'question_id': q['id'], 'title': q['title'], 'score': avg}
+                if avg >= 4:
+                    stats['high_maturity'].append(item)
+                elif avg < 3:
+                    stats['low_maturity'].append(item)
+        
+        if phase_scores:
+            stats['phases'][phase] = {'avg': np.mean(phase_scores), 'min': min(phase_scores), 'max': max(phase_scores)}
+    
+    for param_name, param_data in PARAMETERS.items():
+        param_scores = []
+        for phase in PHASES:
+            if phase in stats['questions']:
+                for q_id in param_data['questions']:
+                    if q_id in stats['questions'][phase]:
+                        param_scores.append(stats['questions'][phase][q_id]['avg'])
+        if param_scores:
+            stats['parameters'][param_name] = {'avg': np.mean(param_scores), 'description': param_data['description']}
+    
+    if all_avgs:
+        stats['overall_avg'] = np.mean(all_avgs)
+    
+    stats['high_maturity'].sort(key=lambda x: x['score'], reverse=True)
+    stats['low_maturity'].sort(key=lambda x: x['score'])
+    
+    return stats
+
+def get_score_color(score):
+    if score >= 4.5: return COLORS['success']
+    elif score >= 3.5: return COLORS['primary_light']
+    elif score >= 2.5: return COLORS['warning']
+    else: return COLORS['danger']
+
+def get_score_text(score):
+    if score >= 4.5: return "Høy modenhet"
+    elif score >= 3.5: return "God modenhet"
+    elif score >= 2.5: return "Moderat modenhet"
+    elif score >= 1.5: return "Begrenset modenhet"
+    else: return "Lav modenhet"
     if not initiative.get('interviews'):
         return None
     
@@ -674,7 +774,8 @@ def create_phase_bar_chart(phase_data):
 ANONYMOUS_NAMES = [
     "Deltaker A", "Deltaker B", "Deltaker C", "Deltaker D", "Deltaker E",
     "Deltaker F", "Deltaker G", "Deltaker H", "Deltaker I", "Deltaker J",
-    "Deltaker K", "Deltaker L", "Deltaker M", "Deltaker N", "Deltaker O"
+    "Deltaker K", "Deltaker L", "Deltaker M", "Deltaker N", "Deltaker O",
+    "Deltaker P", "Deltaker Q", "Deltaker R", "Deltaker S", "Deltaker T"
 ]
 
 def get_anonymous_name(index):
@@ -795,7 +896,7 @@ def generate_html_report(initiative, stats):
 </head>
 <body>
     <h1>Modenhetsvurdering - Gevinstrealisering</h1>
-    <p class="subtitle">Gjennomfores i samarbeid med konsern økonomi og digital transformasjon</p>
+    <p class="subtitle">Gjennomfores i samarbeid med konsern okonomi og digital transformasjon</p>
     
     <h2>DEL 1: Overordnede resultater</h2>
     
@@ -943,11 +1044,11 @@ def generate_html_report(initiative, stats):
             html += f'<div class="comment-phase"><strong>{phase}</strong></div>'
             phase_questions = {str(q['id']): q['title'] for q in questions_data.get(phase, [])}
             for q_id in sorted(phase_comments.keys(), key=lambda x: int(x)):
-                q_title = phase_questions.get(q_id, f"spørsmål {q_id}")
+                q_title = phase_questions.get(q_id, f"Sporsmal {q_id}")
                 html += f'<div class="comment-question"><h4>{q_id}. {q_title}</h4>'
                 for comment in phase_comments[q_id]:
                     html += f'''<div class="comment-item">
-                        <div class="comment-meta">{comment['participant']} <span class="score-badge">Niva {comment['score']}</span></div>
+                        <div class="comment-meta">{comment['participant']} <span class="score-badge">Nivå {comment['score']}</span></div>
                         <div class="comment-text">{comment['notes']}</div>
                     </div>'''
                 html += '</div>'
@@ -979,14 +1080,14 @@ def generate_txt_report(initiative, stats):
         lines.append("")
 
     if stats['high_maturity']:
-        lines.append("3. STYRKEområder (score >= 4)")
+        lines.append("3. STYRKEOMRADER (score >= 4)")
         lines.append("-" * 40)
         for item in stats['high_maturity'][:10]:
             lines.append(f"  [{item['phase']}] {item['title']}: {item['score']:.2f}")
         lines.append("")
 
     if stats['low_maturity']:
-        lines.append("4. FORBEDRINGSområder (score < 3)")
+        lines.append("4. FORBEDRINGSOMRADER (score < 3)")
         lines.append("-" * 40)
         for item in stats['low_maturity'][:10]:
             lines.append(f"  [{item['phase']}] {item['title']}: {item['score']:.2f}")
@@ -1028,10 +1129,10 @@ def generate_txt_report(initiative, stats):
             lines.append(f"\n  [{phase}]")
             phase_questions = {str(q['id']): q['title'] for q in questions_data.get(phase, [])}
             for q_id in sorted(phase_comments.keys(), key=lambda x: int(x)):
-                q_title = phase_questions.get(q_id, f"spørsmål {q_id}")
+                q_title = phase_questions.get(q_id, f"Sporsmal {q_id}")
                 lines.append(f"    {q_id}. {q_title}")
                 for comment in phase_comments[q_id]:
-                    lines.append(f"      - {comment['participant']} (Niva {comment['score']}): {comment['notes']}")
+                    lines.append(f"      - {comment['participant']} (Nivå {comment['score']}): {comment['notes']}")
                 lines.append("")
 
     lines.append("=" * 60)
@@ -1109,7 +1210,7 @@ def show_project_selector(data):
     st.markdown(f'''
     <div style="text-align:center;margin-bottom:2rem;">
         <h1 style="margin:0;color:{COLORS['primary_dark']};font-size:2rem;font-weight:700;">Modenhetsvurdering</h1>
-        <p style="color:{COLORS['primary']};font-size:0.95rem;margin-top:0.3rem;">Gevinstmodenhetsvurdering på tvers av endringsinitiativer i Bane NOR</p>
+        <p style="color:{COLORS['primary']};font-size:0.95rem;margin-top:0.3rem;">Gjennomfores i samarbeid med konsern okonomi og digital transformasjon</p>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -1259,7 +1360,7 @@ def show_main_app(data, current_project_id):
                         st.success("Tilgangskode oppdatert!")
         with st.expander("Slett prosjekt", expanded=False):
             st.warning("Dette vil slette prosjektet og alle tilhorende data permanent!")
-            confirm_name = st.text_input("Skriv prosjektnavnet for a bekrefte sletting")
+            confirm_name = st.text_input("Skriv prosjektnavnet for å bekrefte sletting")
             if st.button("Slett prosjekt permanent", type="primary"):
                 if confirm_name == initiative['name']:
                     del data['initiatives'][current_project_id]
@@ -1282,7 +1383,7 @@ def show_main_app(data, current_project_id):
                 selected_benefit_name = st.selectbox("Gevinst", options=list(benefit_options.keys()))
                 selected_benefit_id = benefit_options[selected_benefit_name]
                 selected_phase = st.selectbox("Fase", options=PHASES)
-                focus_mode = st.radio("Fokusmodus", options=["Rollebasert", "Parameterbasert", "Alle spørsmål"], horizontal=True)
+                focus_mode = st.radio("Fokusmodus", options=["Rollebasert", "Parameterbasert", "Alle sporsmal"], horizontal=True)
                 selected_role = None
                 selected_params = []
                 recommended = []
@@ -1290,11 +1391,11 @@ def show_main_app(data, current_project_id):
                     selected_role = st.selectbox("Rolle", options=list(ROLES.keys()))
                     recommended = get_recommended_questions("role", selected_role, selected_phase)
                     st.caption(ROLES[selected_role]['description'])
-                    st.success(f"{len(recommended)} anbefalte spørsmål. Alle 23 tilgjengelige.")
+                    st.success(f"{len(recommended)} anbefalte sporsmal. Alle 23 tilgjengelige.")
                 elif focus_mode == "Parameterbasert":
                     selected_params = st.multiselect("Parametere", options=list(PARAMETERS.keys()), default=list(PARAMETERS.keys())[:2])
                     recommended = get_recommended_questions("parameter", selected_params, selected_phase)
-                    st.success(f"{len(recommended)} anbefalte spørsmål. Alle 23 tilgjengelige.")
+                    st.success(f"{len(recommended)} anbefalte sporsmal. Alle 23 tilgjengelige.")
                 with st.form("new_interview"):
                     interviewer = st.text_input("Intervjuer")
                     interviewee = st.text_input("Intervjuobjekt")
@@ -1339,36 +1440,36 @@ def show_main_app(data, current_project_id):
                     recommended_qs = [q for q in questions if q['id'] in recommended]
                     other_qs = [q for q in questions if q['id'] not in recommended]
                     if recommended_qs:
-                        st.markdown("### Anbefalte spørsmål")
+                        st.markdown("### Anbefalte sporsmal")
                         for q in recommended_qs:
                             q_id_str = str(q['id'])
                             if q_id_str not in interview['responses'][phase]:
                                 interview['responses'][phase][q_id_str] = {'score': 0, 'notes': ''}
                             resp = interview['responses'][phase][q_id_str]
                             status = "V" if resp['score'] > 0 else "O"
-                            with st.expander(f"{status} {q['id']}. {q['title']}" + (f" - Niva {resp['score']}" if resp['score'] > 0 else ""), expanded=(resp['score'] == 0)):
+                            with st.expander(f"{status} {q['id']}. {q['title']}" + (f" - Nivå {resp['score']}" if resp['score'] > 0 else ""), expanded=(resp['score'] == 0)):
                                 st.markdown(f"**{q['question']}**")
                                 for level in q['scale']:
                                     st.write(f"- {level}")
-                                new_score = st.radio("Niva:", options=[0,1,2,3,4,5], index=resp['score'], key=f"s_{phase}_{q['id']}", horizontal=True, format_func=lambda x: "Ikke vurdert" if x == 0 else f"Niva {x}")
+                                new_score = st.radio("Nivå:", options=[0,1,2,3,4,5], index=resp['score'], key=f"s_{phase}_{q['id']}", horizontal=True, format_func=lambda x: "Ikke vurdert" if x == 0 else f"Nivå {x}")
                                 new_notes = st.text_area("Notater:", value=resp['notes'], key=f"n_{phase}_{q['id']}", height=80)
                                 if st.button("Lagre", key=f"save_{phase}_{q['id']}"):
                                     interview['responses'][phase][q_id_str] = {'score': new_score, 'notes': new_notes}
                                     persist_data()
                                     st.rerun()
                     if other_qs:
-                        st.markdown("### Andre spørsmål")
+                        st.markdown("### Andre sporsmal")
                         for q in other_qs:
                             q_id_str = str(q['id'])
                             if q_id_str not in interview['responses'][phase]:
                                 interview['responses'][phase][q_id_str] = {'score': 0, 'notes': ''}
                             resp = interview['responses'][phase][q_id_str]
                             status = "V" if resp['score'] > 0 else "O"
-                            with st.expander(f"{status} {q['id']}. {q['title']}" + (f" - Niva {resp['score']}" if resp['score'] > 0 else ""), expanded=False):
+                            with st.expander(f"{status} {q['id']}. {q['title']}" + (f" - Nivå {resp['score']}" if resp['score'] > 0 else ""), expanded=False):
                                 st.markdown(f"**{q['question']}**")
                                 for level in q['scale']:
                                     st.write(f"- {level}")
-                                new_score = st.radio("Niva:", options=[0,1,2,3,4,5], index=resp['score'], key=f"s_{phase}_{q['id']}", horizontal=True, format_func=lambda x: "Ikke vurdert" if x == 0 else f"Niva {x}")
+                                new_score = st.radio("Nivå:", options=[0,1,2,3,4,5], index=resp['score'], key=f"s_{phase}_{q['id']}", horizontal=True, format_func=lambda x: "Ikke vurdert" if x == 0 else f"Nivå {x}")
                                 new_notes = st.text_area("Notater:", value=resp['notes'], key=f"n_{phase}_{q['id']}", height=80)
                                 if st.button("Lagre", key=f"save_{phase}_{q['id']}"):
                                     interview['responses'][phase][q_id_str] = {'score': new_score, 'notes': new_notes}
@@ -1388,11 +1489,11 @@ def show_main_app(data, current_project_id):
         benefit_filter_options = {"Alle gevinster": "all"}
         for ben_id, ben in initiative.get('benefits', {}).items():
             benefit_filter_options[ben['name']] = ben_id
-        benefit_filter_name = st.selectbox("Filtrer pa gevinst:", options=list(benefit_filter_options.keys()))
+        benefit_filter_name = st.selectbox("Filtrer på gevinst:", options=list(benefit_filter_options.keys()))
         benefit_filter = benefit_filter_options[benefit_filter_name]
         stats = calculate_stats(initiative, benefit_filter if benefit_filter != "all" else None)
         if not stats or stats['total_interviews'] == 0:
-            st.info("Ingen intervjuer gjennomfort enda")
+            st.info("Ingen intervjuer gjennomført enda")
         else:
             col1, col2, col3, col4 = st.columns(4)
             col1.markdown(f'<div class="metric-card"><div class="metric-label">Intervjuer</div><div class="metric-value">{stats["total_interviews"]}</div></div>', unsafe_allow_html=True)
@@ -1469,7 +1570,7 @@ def show_main_app(data, current_project_id):
                 csv_data = []
                 for phase in stats['questions']:
                     for q_id, q_data in stats['questions'][phase].items():
-                        csv_data.append({'Fase': phase, 'spørsmålID': q_id, 'Tittel': q_data['title'], 'Gjennomsnitt': round(q_data['avg'], 2), 'AntallSvar': q_data['count']})
+                        csv_data.append({'Fase': phase, 'SporsmalID': q_id, 'Tittel': q_data['title'], 'Gjennomsnitt': round(q_data['avg'], 2), 'AntallSvar': q_data['count']})
                 csv_df = pd.DataFrame(csv_data)
                 st.download_button("Last ned CSV", data=csv_df.to_csv(index=False, sep=';'), file_name=f"modenhet_{initiative['name']}_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
             with col2:
